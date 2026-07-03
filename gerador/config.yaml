@@ -1,0 +1,111 @@
+# =============================================================================
+# MDM-RH — Config do gerador de massa ficticia (FOTO)
+# versao: v0.1
+# -----------------------------------------------------------------------------
+# TODOS os parametros ajustaveis do gerador vivem AQUI. O gen_massa.py le este
+# arquivo e nao tem numero hardcoded. Trocar 60/40 de sexo, ou 8% de orfao, e
+# editar este YAML — nao o codigo. Este e o embriao do subprojeto de massa.
+#
+# ESCOPO: gera SO FOTO (estado vigente). NAO gera eventos. Ver nota "ancoras
+#   para o gerador de eventos" no fim — a FOTO nasce coerente para que o gerador
+#   de eventos (subprojeto futuro) consiga reconstruir trajetoria de cada servidor.
+#
+# GRAO / FRONTEIRA DE TABELA (schema v0.5 manda):
+#   - `servidor` = grao VINCULO (1 linha por matricula). NAO tem sexo nem endereco.
+#   - `cadastro` = grao PESSOA (1 linha por CPF): sexo, naturalidade, etc.
+#     ATENCAO: `cadastro` NAO existe como tabela no schema v0.5 (so servidor/evento/
+#     rejeito). O gerador emite cadastro num arquivo SEPARADO (pessoa.csv), pronto
+#     para quando a tabela cadastro entrar. Na PoC de FOTO, o loader pode ignora-lo
+#     ou cria-lo a parte. Sexo/endereco moram AQUI por decisao de grao, nao em servidor.
+# =============================================================================
+
+# --- volume ------------------------------------------------------------------
+n_servidores: 1200            # ordem de grandeza do orgao (corpus: ~1200 processos)
+seed_aleatorio: 42            # fixo = massa reproduzivel (mesma rodada = mesmo dado).
+                              # null = massa nova a cada rodada (testar idempotencia do loader).
+
+data_referencia: ontem        # 'ontem' = D-1 dinamico; ou data fixa 'AAAA-MM-DD'.
+
+# --- pessoa (grao CPF — vai para cadastro/pessoa.csv) ------------------------
+sexo:
+  M: 0.60
+  F: 0.40
+
+# Naturalidade/endereco. NOTA: 'endereco residencial' NAO e coluna do schema.
+# Aqui geramos NATURALIDADE (uf + municipio), que tem lugar no de-para cadastro
+# (uf_nascimento / municipio_nascimento). Se o PM quiser endereco residencial de
+# fato, e campo novo — decidir no subprojeto. Peso conforme pedido: 70% DF.
+geografia:
+  DF_Brasilia: 0.70           # 70% Brasilia/DF
+  outras_capitais: 0.30       # 30% distribuido entre as demais capitais (lista no .py)
+
+idade:
+  min: 25                     # ingresso tipico pos-concurso de nivel superior
+  max: 75                     # teto aposentadoria compulsoria
+idade_ingresso:
+  min: 25
+  max: 45
+
+# --- vinculo (grao matricula — vai para servidor) ---------------------------
+multivinculo_pct: 0.03        # % de CPFs com N>1 matriculas (acumulacao licita, rara)
+
+cargo_fixo: EPPGG             # PoC so-EPPGG
+nivel_cargo_fixo: NS          # PoC so nivel superior
+regime:
+  RJU: 0.97
+  CLT: 0.03
+
+# Situacao funcional vigente (dom_situacao_vinculo). Soma ~1.0.
+situacao:
+  ATIVO: 0.80
+  INATIVO: 0.10               # aposentado
+  CEDIDO: 0.04
+  DISPONIBILIDADE: 0.01
+  DESLIGADO: 0.05
+
+# Classe/padrao: distribuicao PIRAMIDAL (carreira afunila no topo).
+# Peso por classe; dentro da classe, padrao ~uniforme I..V (o .py cuida da
+# coerencia com tempo de casa — ESPECIAL-V exige ~20 anos).
+classe_peso:
+  A: 0.40
+  B: 0.30
+  C: 0.20
+  ESPECIAL: 0.10
+
+# Funcao comissionada (CCE/FCE). Maioria SEM funcao.
+funcao_comissionada_pct: 0.15 # % que ocupa alguma FCE/CCE
+# dentre os que tem funcao, peso por trilha (1o digito do codigo):
+funcao_trilha_peso:
+  "1": 0.45                   # direcao
+  "2": 0.35                   # assessoramento
+  "3": 0.15                   # direcao de projetos
+  "4": 0.05                   # assessoramento tecnico especializado (so FCE)
+# faixa de nivel de funcao plausivel (evita dar FCE 1.17 a servidor junior):
+funcao_nivel:
+  min: 5
+  max: 15
+
+nova_funcao_pct: 0.02         # % com funcao em transicao (nova_funcao preenchida) — raro
+
+# --- estrutura organizacional (UORG ficticia) -------------------------------
+# dom_unidade_eorg NAO e semeado no seed (vem do SIORG). O gerador cria as UORGs
+# ficticias e emite tanto o seed de dom_unidade_eorg quanto as lotacoes.
+n_uorgs: 30                   # nº de unidades ficticias no "E-Org" do orgao
+orfao_estrutural_pct: 0.08    # % de servidores cuja lotacao aponta p/ UORG INEXISTENTE
+                              # (nao esta em dom_unidade_eorg) => KR 2.1, painel delta.
+                              # SE 0 => painel delta vem vazio, metade da PoC nao prova nada.
+exercicio_difere_lotacao_pct: 0.06  # % com cod_unidade_exercicio != lotacao (cedido/afastado)
+
+# --- afastamento vigente na FOTO --------------------------------------------
+# cod_afastamento_vigente nulo = exercicio normal. Poucos afastados no retrato.
+afastado_vigente_pct: 0.05    # % com afastamento vigente (sorteia cod de dom_afastamento)
+
+# =============================================================================
+# ANCORAS PARA O GERADOR DE EVENTOS (subprojeto futuro — NAO usado nesta PoC)
+# -----------------------------------------------------------------------------
+# A FOTO gerada e o ESTADO FINAL de uma trajetoria. O gerador de eventos vai
+# ancorar em: data_ingresso, classe+padrao atual, situacao, data_referencia.
+# Por isso o .py GARANTE coerencia temporal: nao gera ESPECIAL-V com 2 anos de
+# casa (trajetoria seria impossivel de reconstruir). Estes campos sao o "contrato"
+# com o gerador de eventos; nao mexer na semantica sem alinhar os dois.
+# =============================================================================

@@ -1,0 +1,9 @@
+# credenciais reais — nunca commitar (o .env.example e o modelo versionado)
+loader/.env
+
+# massa gerada — repetivel via gen_massa.py
+gerador/out/
+
+# python
+__pycache__/
+*.pyc
