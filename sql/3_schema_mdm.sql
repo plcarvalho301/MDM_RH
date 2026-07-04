@@ -321,6 +321,16 @@ WHERE te.cod_sub_dominio = 'compensacao';
 CREATE UNIQUE INDEX ux_mv_calculadora ON mv_calculadora(id_evento);
 CREATE INDEX ix_mv_calculadora_mat ON mv_calculadora(matricula_funcional, data_evento);
  
+-- ── Vitrine ODBC das MVs ────────────────────────────────────────────────────
+-- Casca fina: SQLTables do driver psqlODBC nao enumera relkind='m' (MV) no
+-- Navegador do Power BI, so 'r'/'v'. Sem isto a MV existe no banco mas fica
+-- invisivel pro conector — nao e redesenho da fronteira (ADR-007), so
+-- compatibilidade de catalogo. SELECT trivial sobre a MV ja materializada,
+-- nao toca evento.
+CREATE VIEW vw_mv_filme_servidor AS SELECT * FROM mv_filme_servidor;
+CREATE VIEW vw_mv_filme_gestor    AS SELECT * FROM mv_filme_gestor;
+CREATE VIEW vw_mv_calculadora     AS SELECT * FROM mv_calculadora;
+
 -- ── RH / Corregedoria — NAO e objeto de exposicao ──────────────────────────
 -- Acesso privilegiado documentado (ADR-007): GRANT SELECT direto em
 -- servidor+evento, role minimo (grao de TABELA nomeada, nao database).
