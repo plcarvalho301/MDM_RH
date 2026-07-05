@@ -1,4 +1,4 @@
-# Gerador de Bichos — mini-doc do produto (v0.1)
+# Gerador de Bichos — mini-doc do produto (v0.2)
 
 **O que é:** o subsistema que fabrica a massa fictícia do MDM-RH (universo "Reino
 Animal"). Produz uma base golden-record coerente — FOTO (estado vigente) + EVENTOS
@@ -7,9 +7,12 @@ por seed. Serve para: popular dashboards, exercitar KRs/ADRs, e (fase 2) testar 
 conectores de ingestão real.
 
 **Estado:** fluxo canônico FOTO→EVENTO validado ponta a ponta (0 divergências).
-Schema do banco em **v0.11** (commit `57dd5a8`): rótulos em todas as superfícies
-do painel (`vw_foto`, `vw_lente`, `vw_filme_servidor`, `vw_filme_gestor`) +
-regras de modelo como dado.
+Schema do banco em **v0.13**: rótulos em todas as superfícies do painel (`vw_foto`,
+`vw_lente`, `vw_filme_servidor`, `vw_filme_gestor`) + regras de modelo como dado +
+**Calculadora completa (folha + PSS)**. A Calculadora deixou de ser uma MV: virou
+duas por fronteira de payload — `mv_calculadora_folha` (rubrica explodida) e
+`mv_calculadora_pss` (contribuição PSS mensal), ADR-011. O gerador emite os dois
+tipos de `compensacao`: `FECHAMENTO_FOLHA` e `CONTRIBUICAO_PSS`.
 
 ---
 
@@ -56,7 +59,7 @@ designação/REMOCAO corretiva aterrissa no assento); a vida = designer.
 | `gerador/gerador_eventos.py` (v3) | Re-roda a MESMA trajetória por vínculo (`arquetipo`+`traj_salt` do csv) e emite os eventos. Sem máquina de estados própria. |
 | `gerador/semente_trajetorias_v1.yaml` | 14 arquétipos do designer (v0.2 normalizado). **É o coração do fluxo** — pesos A, contagens B, marcos. |
 | `loader/carrega_foto.py` | Carrega `servidor.csv` → tabela `servidor` (UPSERT, rota de rejeito). |
-| `sql/3_schema_mdm.sql` (v0.11) | Schema do golden record + MVs de Filme/Gestor/Calculadora + views amigáveis (`vw_foto`, `vw_lente`, `vw_filme_*`) com rótulos resolvidos. |
+| `sql/3_schema_mdm.sql` (v0.13) | Schema do golden record + 4 MVs de exposição (Filme-Servidor, Filme-Gestor, Calculadora-Folha, Calculadora-PSS) + views amigáveis (`vw_foto`, `vw_lente`, `vw_filme_*`) com rótulos resolvidos. Vitrine ODBC da Calculadora sem `payload` (jsonb não sobe pro Power BI). |
 | `sql/seed_dominios.sql` (v0.2) | Domínios-base (FK-obrigatórios). |
 | `sql/roteiro_retratacao_adr009.sql` | Retratação operacional ponta a ponta (fixture carga_lixo). |
 | `tests/valida_replay_intervalo.py` | Prova que o replay dos eventos re-deriva a foto (0 divergências). |
@@ -74,20 +77,20 @@ python gerador/gen_massa.py --config gerador/config.yaml --outdir gerador/out
 psql -d mdm_rh -f gerador/out/seed_unidades_reino_animal.sql \
                -f gerador/out/seed_funcao_reino_animal.sql
 
-# 3. EVENTOS: re-roda as MESMAS trajetórias e emite (base+folha+lixo)
+# 3. EVENTOS: re-roda as MESMAS trajetórias e emite (base+folha+pss+lixo; --sem-pss desliga PSS)
 python gerador/gerador_eventos.py --valida
 
-# 4. Carrega FOTO e EVENTOS
+# 4. Carrega FOTO e EVENTOS (load_eventos.sql já faz o REFRESH das 4 MVs ao final)
 python loader/carrega_foto.py --csv gerador/out/servidor.csv
 ( cd gerador/out && psql -d mdm_rh -f load_eventos.sql )
 
-# 5. Materializa e valida contra o banco real
-psql -d mdm_rh -c "REFRESH MATERIALIZED VIEW mv_filme_servidor;" # + gestor, calculadora
+# 5. Valida contra o banco real (REFRESH já rodou no passo 4)
 python tests/valida_replay_intervalo.py     # meta: 0 divergências
 ```
 
-Última rodada: 1300 vínculos · 260.465 eventos (7.800 base + 252.635 folha + 30 lixo)
-· situação 1152 ATIVO / 55 DESLIGADO / 52 INATIVO / 29 CEDIDO / 12 DISPONIBILIDADE.
+Última rodada: 1300 vínculos · **561.695 eventos** (17.799 base + 271.933 folha +
+271.933 PSS + 30 lixo) · situação 1100 ATIVO / 113 INATIVO / 40 DESLIGADO /
+26 DISPONIBILIDADE / 21 CEDIDO.
 
 ## 4. Formatos de I/O
 
@@ -129,6 +132,13 @@ Eixos ainda **não** cobertos (fase 2 — teste de conector):
   `cod_afastamento, data_inicio, data_fim` (AFASTAMENTO/CESSAO); `cod_motivo_deslig,
   data_desligamento` (DESLIGAMENTO); e as chaves de PROVIMENTO/PROGRESSAO/
   ALTERACAO_FUNCAO/FECHAMENTO_FOLHA.
+- **Payload da Calculadora (v0.13):** `mv_calculadora_folha` explode `rubricas`
+  (`jsonb_to_recordset`) — não renomear `cod_rubrica, nome_rubrica, valor_rubrica`
+  (COM sinal), `indicador_rd, numero_seq` + `mes_competencia/mes_pagamento/
+  tipo_fechamento`. `mv_calculadora_pss` planifica `gr_matricula, ano_contribuicao,
+  mes_contribuicao, pss_apurado` (int), `remuneracao_pss` (numeric) etc. Os arrays
+  datados do 4.22 (`ferias/lpa/afastamentos/reclusao`) ficam SÓ no payload cru —
+  insumo de dias-líquidos, NÃO viram evento AFASTAMENTO (não duplicar).
 - **Regras de derivação de situação** (a foto não guarda situação como evento; o
   replay re-deriva por intervalo na data-ref) — **dado desde v0.11**, lido de
   `dom_afastamento`/`dom_motivo_deslig` (não hardcoded no gerador):
@@ -136,7 +146,7 @@ Eixos ainda **não** cobertos (fase 2 — teste de conector):
   - base ATIVO + afastamento com `deriva_situacao='DISPONIBILIDADE'` (**31**) → **DISPONIBILIDADE**
   - base ATIVO + afastamento (outro código) → **ATIVO** afastado
   - DESLIGAMENTO → situação do motivo (`dom_motivo_deslig.situacao_resultante`)
-  - `pausa_folha` (hoje só **05**) → folha pula o mês
+  - `pausa_folha` (hoje só **05**) → folha E PSS pulam o mês (sem remuneração = sem contribuição)
 - **ADR-008 (coalescência):** fração das intercorrências sai como par
   aberto+fechamento (data_carga mais recente vence); a MV marca `intervalo_vigente`.
 - **ADR-009 (retratação):** cada carga tem `id_carga` próprio (partição destacável).
@@ -148,7 +158,9 @@ estendido); população sincronizada (foto ↔ eventos = mesma gente); MVs plana
 para o PBI; retratação ADR-009 com roteiro executável; **rótulos** em todas as
 4 superfícies do painel (v0.10 + fix da `vw_lente`); **regras de modelo como
 dado** (v0.11) — gerador/replay leem `dom_afastamento`/`dom_motivo_deslig` do
-banco, zero regra de domínio hardcoded.
+banco, zero regra de domínio hardcoded; **Calculadora completa (v0.13)** — folha
+planificada (rubrica explodida) + `CONTRIBUICAO_PSS` (série mensal SEM piso
+temporal: fonte SIAPE 4.22, cobre a vida funcional inteira, não trunca no eSocial).
 
 **Item A (casos ricos) ✅ FEITO (massa v0.3, arquétipo-primeiro):** todos os 1300
 carregam arquétipo do designer; os plantados têm suas cadeias-assinatura no banco
