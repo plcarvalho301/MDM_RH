@@ -1,7 +1,21 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// MDM-RH — CATÁLOGO DE EVENTOS  (v1.1, rascunho de trabalho)
+// MDM-RH — CATÁLOGO DE EVENTOS  (v1.2, rascunho de trabalho)
 // Catálogo PRINCIPAL do event store. Sub-domínios: cadastro, vinculos, intercorrencias, compensacao, jornada (+ desempenho/capacidades no catalogo_estendido).
-// Data: 2026-06-22 | v1.1: 2026-07-05
+// Data: 2026-06-22 | v1.1: 2026-07-05 | v1.2: 2026-07-05
+//
+// CHANGELOG v1.2 (handoff Calculadora completa — folha + PSS):
+//   - NOVO TIPO CONTRIBUICAO_PSS em `compensacao`. Faltava: o prespec §5 fixa
+//     listaContribuicoesPSS (WS_SIAPE_CONSULTAS 4.22) como a OUTRA fonte da
+//     Calculadora, ao lado de FECHAMENTO_FOLHA — só a folha tinha sido migrada
+//     do catalogo_financeiro_v0_1. Payload: campos apurados do 4.22 (pág. 45) +
+//     arrays datados do MESMO payload (férias/lpa/afastamentos/reclusão, pág. 44)
+//     como ATRIBUTO (insumo de dias líquidos), NÃO evento espelho — não duplicar
+//     AFASTAMENTO. Fonte do PSS é o SIAPE, não o eSocial: SEM piso temporal —
+//     série cobre a vida funcional inteira do vínculo (há servidores pré-1995 na
+//     folha); truncar em 2022/1999 simularia o eSocial em vez do SIAPE e abriria
+//     buraco na série (= número de aposentadoria errado, prespec §5).
+//   - mv_calculadora (schema) vira DUAS MVs por fronteira de payload
+//     (mv_calculadora_folha, mv_calculadora_pss) — ver ADR-011.
 //
 // CHANGELOG v1.1 (sessão do handoff do designer / fechamento das lacunas ⚠1–3):
 //   - ALTERACAO_FUNCAO.tipo_movimento distingue dispensa_pedido × dispensa_oficio
@@ -101,12 +115,13 @@ sub_dominio_dom:
       e sem ingestão de PGD hoje. Existe para receber quando a fonte abrir.
 
   - cod_sub_dominio: compensacao
-    descricao: "Fechamentos de folha de pagamento (remuneração histórica)."
-    classe_transicao: null                 # ADITIVO. Folha não transita vínculo; só soma.
+    descricao: "Fechamentos de folha de pagamento e contribuições PSS (remuneração/previdência histórica)."
+    classe_transicao: null                 # ADITIVO. Nem folha nem PSS transitam vínculo; só somam/registram.
     obs: >
-      Migrado do catalogo_financeiro_v0_1 (absorvido). Log aditivo. Um evento =
-      um fechamento de folha de uma competência. Fonte: consultaDadosFinanceiros-
-      Historico (SIAPE). Completude de série exaustiva é a função (cálculo PSS).
+      Migrado do catalogo_financeiro_v0_1 (absorvido). Log aditivo. DUAS fontes
+      (prespec §5): FECHAMENTO_FOLHA (consultaDadosFinanceirosHistorico, SIAPE) e
+      CONTRIBUICAO_PSS (listaContribuicoesPSS, WS_SIAPE_CONSULTAS 4.22). Completude
+      de série exaustiva é a função (cálculo de aposentadoria) — vale p/ os dois tipos.
 
 
 // =============================================================================
@@ -263,6 +278,24 @@ tipo_evento_dom:
       SIAPE; o retroativo pré-SIAPE (até 1982) é extração/papel. Completude de
       série EXAUSTIVA é a função (cálculo de aposentadoria).
 
+  - cod_tipo_evento: CONTRIBUICAO_PSS
+    nome: "Contribuição PSS (competência)"
+    cod_sub_dominio: compensacao
+    cod_classe_transicao: null               # aditivo — não move vínculo
+    evento_esocial: false
+    codigo_esocial: null
+    cod_impacto_previdenciario: null
+    cod_mecanica: ingestao                   # vem da API 4.22 (listaContribuicoesPSS)
+    ativo: true
+    obs: >
+      Handoff Calculadora completa (2026-07-05): faltava — prespec §5 fixa a
+      Calculadora com DUAS fontes (PSS + folha); só a folha tinha migrado do
+      catalogo_financeiro_v0_1. UM evento = UMA competência de PSS de UM vínculo
+      (WS_SIAPE_CONSULTAS 4.22, listaContribuicoesPSS). SEM PISO TEMPORAL: fonte é
+      o SIAPE, não o eSocial — a série cobre a vida funcional inteira do vínculo
+      (há servidores pré-1995 na folha); truncar em 2022/1999 simula o eSocial em
+      vez do SIAPE e abre buraco na série = número de aposentadoria errado.
+
 
 // =============================================================================
 // PARTE 5 — PAYLOADS  (schema fechado por tipo)
@@ -380,6 +413,55 @@ payloads:
     #   recente. QUAL caso aplica é decisão do cálculo/RH, não do MDM. Event store
     #   guarda os dois fechamentos imutáveis; a projeção decide. Não há cod_folha:
     #   a API §4.20 não entrega tipo de folha; 13º/férias são RUBRICAS (projeção por cod_rubrica).
+
+  CONTRIBUICAO_PSS:
+    descricao: "Contribuição PSS de UMA competência (espelha listaContribuicoesPSS, WS_SIAPE_CONSULTAS 4.22)."
+    campos:
+      - { campo: gr_matricula,             tipo: int,     obrig: true,  obs: "matrícula do vínculo (chave)" }
+      - { campo: ano_contribuicao,         tipo: int,     obrig: true,  obs: "AnoContribuicoesPSS" }
+      - { campo: mes_contribuicao,         tipo: int,     obrig: true,  obs: "MesContribuicoesPSS — junto com ano_contribuicao é a chave de coalescência" }
+      - { campo: indice_reajuste,          tipo: int,     obrig: false, obs: "indiceReajuste" }
+      - { campo: pss_apurado,              tipo: int,     obrig: true,  obs: "pssApurado — contribuição apurada" }
+      - { campo: pss_informado,            tipo: int,     obrig: false, obs: "pssInformado — contribuição informada" }
+      - { campo: remuneracao_pss,          tipo: numeric, obrig: true,  obs: "remuneracaoPss — base de cálculo" }
+      - { campo: remuneracao_pss_ajustada, tipo: numeric, obrig: false, obs: "remuneracaoPssAjustada" }
+      - campo: ferias
+        tipo: "list<obj>"
+        obrig: false
+        obs: "Arrays datados do MESMO payload 4.22 (insumo de dias líquidos; NÃO planificados na MV — ver mv_calculadora_pss)."
+        item:
+          - { campo: data_ini, tipo: date, obrig: true }
+          - { campo: data_fim, tipo: date, obrig: true }
+      - campo: lpa
+        tipo: "list<obj>"
+        obrig: false
+        obs: "Licença-prêmio por assiduidade."
+        item:
+          - { campo: data_ini, tipo: date, obrig: true }
+          - { campo: data_fim, tipo: date, obrig: true }
+      - campo: afastamentos
+        tipo: "list<obj>"
+        obrig: false
+        obs: >
+          SE SOBREPÕE ao evento AFASTAMENTO (intercorrencias) — mesmo fato, dois
+          espelhos (4.1 vigente × 4.22 PSS). NÃO duplicar como evento; aqui só
+          entra como atributo do payload PSS p/ o cálculo de dias líquidos. Qual
+          fonte é autoritativa é proveniência multi-fonte, ADR aberta (prespec §7.1).
+        item:
+          - { campo: cod_ocorrencia,  tipo: int,  obrig: false }
+          - { campo: desc_ocorrencia, tipo: text, obrig: false }
+          - { campo: data_ini,        tipo: date, obrig: true }
+          - { campo: data_fim,        tipo: date, obrig: false }
+      - campo: reclusao
+        tipo: "list<obj>"
+        obrig: false
+        item:
+          - { campo: data_ini, tipo: date, obrig: true }
+    # COALESCÊNCIA: chave = (ano_contribuicao, mes_contribuicao) + vínculo. SEM PISO
+    #   TEMPORAL: a fonte é o SIAPE, não o eSocial — série cobre a vida funcional
+    #   inteira (provimento até a competência atual), não só pós-ago/2022. Buraco na
+    #   série = número de aposentadoria errado (prespec §5). Os arrays datados acima
+    #   NÃO viram evento AFASTAMENTO separado — ver obs do campo `afastamentos`.
 
 
 // =============================================================================

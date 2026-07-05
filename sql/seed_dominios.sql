@@ -101,7 +101,7 @@ INSERT INTO dom_sub_dominio (cod_sub_dominio, descricao, classe_transicao_aplica
     ('vinculos',        'Eventos que transitam o estado do vinculo do servidor.',                          true),
     ('intercorrencias', 'Afastamentos, licencas, ferias - intervalos sobre o vinculo, sem encerra-lo.',    true),
     ('jornada',         'Execucao do trabalho: entregas e planos de trabalho do PGD.',                     false),
-    ('compensacao',     'Fechamentos de folha de pagamento (remuneracao historica).',                      false)
+    ('compensacao',     'Fechamentos de folha de pagamento e contribuicoes PSS (remuneracao/previdencia historica).', false)
 ON CONFLICT (cod_sub_dominio) DO NOTHING;
 
 
@@ -136,7 +136,8 @@ INSERT INTO dom_tipo_evento
     ('CESSAO',           'Cessão',                 'vinculos',        'CEDE',    'S-2231', true),
     ('RETORNO_VINCULO',  'Retorno de vínculo',     'vinculos',        'RETOMA',  'S-2298', true),
     ('DESLIGAMENTO',     'Desligamento',           'vinculos',        'ENCERRA', 'S-2299', true),
-    ('FECHAMENTO_FOLHA', 'Fechamento de folha',    'compensacao',     NULL,      NULL,     true)   -- aditivo, sem classe_transicao
+    ('FECHAMENTO_FOLHA', 'Fechamento de folha',    'compensacao',     NULL,      NULL,     true),  -- aditivo, sem classe_transicao
+    ('CONTRIBUICAO_PSS', 'Contribuição PSS',       'compensacao',     NULL,      NULL,     true)   -- aditivo; handoff Calculadora completa 2026-07-05
 ON CONFLICT (cod_tipo_evento) DO NOTHING;
 
 

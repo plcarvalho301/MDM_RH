@@ -1,10 +1,34 @@
 -- =============================================================================
 -- MDM-RH — Schema do golden record (FOTO + EVENTO)
--- versao: v0.11
--- ancora: 3_depara_foto_v0_3.md | 3_catalogo_eventos_v1.yaml (v1.1) | ADR-007 | ADR-008 | ADR-009 | ADR-010
+-- versao: v0.12
+-- ancora: 3_depara_foto_v0_3.md | 3_catalogo_eventos_v1.yaml (v1.2) | ADR-007 | ADR-008 | ADR-009 | ADR-010 | ADR-011
 -- =============================================================================
 -- HISTORICO DE VERSAO (versao dentro do arquivo; nome sem versao)
---   v0.11 (este) — REGRAS DE MODELO viram DADO (o gerador/replay leem do banco, nao
+--   v0.12 (este) — CALCULADORA COMPLETA: folha planificada + evento PSS novo
+--                 (handoff 2026-07-05, catalogo v1.2, ADR-011):
+--                 (1) CONTRIBUICAO_PSS entra em dom_tipo_evento (compensacao) —
+--                     faltava; a folha e a UNICA fonte migrada, o prespec pede as duas.
+--                 (2) mv_calculadora (uma MV, payload cru) vira DUAS MVs por
+--                     FRONTEIRA de payload (ADR-011, mesmo principio da ADR-007
+--                     "objeto por fronteira, nao por painel" que ja separa Filme
+--                     S/G): mv_calculadora_folha e mv_calculadora_pss. FECHAMENTO_
+--                     FOLHA e CONTRIBUICAO_PSS sao shapes incompativeis sob o mesmo
+--                     cod_sub_dominio='compensacao' — MV por cod_tipo_evento, nao
+--                     CASE numa MV so.
+--                 (3) mv_calculadora_folha planifica as chaves do payload da folha
+--                     em coluna (padrao Filme v0.9) E EXPLODE rubricas (grao =
+--                     1 linha por rubrica, jsonb_to_recordset): Power BI le coluna
+--                     plana direto, sem "Expandir" lista JSON na Power Query —
+--                     ergonomia p/ usuario novo no PBI. payload cru fica ao lado.
+--                     Indice unico muda de (id_evento) p/ (id_evento, numero_seq).
+--                 (4) mv_calculadora_pss planifica os campos apurados (grao = 1
+--                     linha por evento, sem lista a explodir). Os arrays datados do
+--                     mesmo payload 4.22 (ferias/lpa/afastamentos/reclusao) ficam
+--                     SO no payload cru — insumo de dias-liquidos, nao duplicar
+--                     como evento AFASTAMENTO (ver catalogo, obs do campo).
+--                 (5) vitrine ODBC (v0.7) ganha vw_mv_calculadora_folha e
+--                     vw_mv_calculadora_pss; vw_mv_calculadora (unica) sai.
+--   v0.11 — REGRAS DE MODELO viram DADO (o gerador/replay leem do banco, nao
 --                 hardcode; regra nova = UPDATE na dimensao, sem deploy):
 --                 (1) dom_afastamento ganha `deriva_situacao` (afast vigente que muda
 --                     a situacao: 40->CEDIDO, 31->DISPONIBILIDADE) e `pausa_folha`
@@ -449,7 +473,7 @@ GROUP BY fonte, motivo;
 -- Seguranca de acesso NAO mora aqui — e infra (on-prem, acesso pessoa a pessoa).
 --   Foto/Lente   -> view comum (base leve; MV nao paga aluguel).
 --   Filme S/G    -> 2 MVs (payloads distintos -> objetos distintos).
---   Calculadora  -> MV (serie densa por matricula).
+--   Calculadora  -> 2 MVs (folha x PSS; payloads distintos, ADR-011).
 --   RH/Correg    -> sem objeto; GRANT SELECT direto em servidor+evento.
 -- REFRESH das MVs = processamento (relogio Airflow, D-1). Ver 3_dag_ingestao.
 -- =============================================================================
@@ -587,24 +611,82 @@ CREATE INDEX ix_mv_filme_gestor_afast ON mv_filme_gestor(cod_afastamento);
 CREATE INDEX ix_mv_filme_gestor_deslig ON mv_filme_gestor(cod_motivo_deslig);
 
 -- ── Calculadora do RH ───────────────────────────────────────────────────────
--- MV: serie densa PSS/financeiro por matricula (servidor de 1992 = 30+ anos).
--- Materializa porque a densidade doi no clique — nao por fronteira.
--- Le eventos do sub-dominio compensacao (PSS apurado, base, afastamento datado).
-CREATE MATERIALIZED VIEW mv_calculadora AS
+-- 2 MVs por FRONTEIRA de payload (ADR-011 — mesmo principio da ADR-007 que ja
+-- separa Filme S/G): compensacao tem duas familias de payload incompativeis
+-- (FECHAMENTO_FOLHA x CONTRIBUICAO_PSS) sob o mesmo cod_sub_dominio. MV por
+-- cod_tipo_evento, nao CASE numa MV so. Serie densa por matricula (servidor
+-- de 1992 = 30+ anos) — materializa porque a densidade doi no clique.
+
+-- Fechamento de folha: planifica as chaves do payload em coluna (padrao Filme
+-- v0.9) E EXPLODE rubricas — grao = 1 linha por rubrica (jsonb_to_recordset),
+-- nao 1 linha por evento. Power BI le coluna plana direto, sem "Expandir"
+-- lista JSON na Power Query (ADR-011). Colunas de competencia repetem por
+-- rubrica (denormalizado, esperado no grao fino). payload cru fica ao lado.
+CREATE MATERIALIZED VIEW mv_calculadora_folha AS
 SELECT e.id_evento,
        e.matricula_funcional,
        e.cpf,
        e.cod_tipo_evento,
        e.data_evento,
+       (e.payload->>'mes_competencia') AS mes_competencia,
+       (e.payload->>'mes_pagamento')   AS mes_pagamento,
+       (e.payload->>'tipo_fechamento') AS tipo_fechamento,
+       r.cod_rubrica,
+       r.nome_rubrica,
+       r.valor_rubrica,
+       r.indicador_rd,
+       r.numero_seq,
+       r.prazo_rubrica,
+       r.periodo_rubrica,
+       r.data_ano_mes_rubrica,
        e.payload,
        e.fonte,
        e.grau_confianca
 FROM evento e
-JOIN dom_tipo_evento te ON te.cod_tipo_evento = e.cod_tipo_evento
-WHERE te.cod_sub_dominio = 'compensacao';
+CROSS JOIN LATERAL jsonb_to_recordset(e.payload->'rubricas') AS r(
+    cod_rubrica          int,
+    nome_rubrica         text,
+    valor_rubrica        numeric,
+    indicador_rd         text,
+    numero_seq           int,
+    prazo_rubrica        int,
+    periodo_rubrica      int,
+    data_ano_mes_rubrica text
+)
+WHERE e.cod_tipo_evento = 'FECHAMENTO_FOLHA';
 
-CREATE UNIQUE INDEX ux_mv_calculadora ON mv_calculadora(id_evento);
-CREATE INDEX ix_mv_calculadora_mat ON mv_calculadora(matricula_funcional, data_evento);
+CREATE UNIQUE INDEX ux_mv_calculadora_folha ON mv_calculadora_folha(id_evento, numero_seq);
+CREATE INDEX ix_mv_calculadora_folha_mat  ON mv_calculadora_folha(matricula_funcional, data_evento);
+CREATE INDEX ix_mv_calculadora_folha_comp ON mv_calculadora_folha(mes_competencia);
+
+-- Contribuicao PSS: grao = 1 linha por evento (payload sem lista a explodir
+-- no numero apurado). Os arrays datados do MESMO payload 4.22 (ferias, lpa,
+-- afastamentos, reclusao — catalogo v1.2) ficam SO no payload cru: sao insumo
+-- de dias-liquidos, nao planificados aqui p/ nao sugerir que sao coluna de
+-- calculo pronta, e p/ nao duplicar o evento AFASTAMENTO (intercorrencias).
+CREATE MATERIALIZED VIEW mv_calculadora_pss AS
+SELECT e.id_evento,
+       e.matricula_funcional,
+       e.cpf,
+       e.cod_tipo_evento,
+       e.data_evento,
+       (e.payload->>'gr_matricula')::int               AS gr_matricula,
+       (e.payload->>'ano_contribuicao')::int            AS ano_contribuicao,
+       (e.payload->>'mes_contribuicao')::int            AS mes_contribuicao,
+       (e.payload->>'indice_reajuste')::int             AS indice_reajuste,
+       (e.payload->>'pss_apurado')::int                 AS pss_apurado,
+       (e.payload->>'pss_informado')::int               AS pss_informado,
+       (e.payload->>'remuneracao_pss')::numeric         AS remuneracao_pss,
+       (e.payload->>'remuneracao_pss_ajustada')::numeric AS remuneracao_pss_ajustada,
+       e.payload,
+       e.fonte,
+       e.grau_confianca
+FROM evento e
+WHERE e.cod_tipo_evento = 'CONTRIBUICAO_PSS';
+
+CREATE UNIQUE INDEX ux_mv_calculadora_pss ON mv_calculadora_pss(id_evento);
+CREATE INDEX ix_mv_calculadora_pss_mat  ON mv_calculadora_pss(matricula_funcional, data_evento);
+CREATE INDEX ix_mv_calculadora_pss_comp ON mv_calculadora_pss(ano_contribuicao, mes_contribuicao);
 
 -- ── RH / Corregedoria — NAO e objeto de exposicao ──────────────────────────
 -- Acesso privilegiado documentado (ADR-007): GRANT SELECT direto em
@@ -617,7 +699,7 @@ CREATE INDEX ix_mv_calculadora_mat ON mv_calculadora(matricula_funcional, data_e
 -- VITRINE ODBC DAS MVs (v0.7) — compat de catalogo, NAO nova fronteira.
 -- -----------------------------------------------------------------------------
 -- PROBLEMA: o driver psqlODBC nao enumera relkind='m' (materialized view) no
--- Navegador do Power BI. As 3 MVs de exposicao existem no banco, respondem a
+-- Navegador do Power BI. As 4 MVs de exposicao existem no banco, respondem a
 -- SELECT, mas ficam INVISIVEIS pro conector — o usuario nao as ve na lista de
 -- objetos ao montar o painel.
 -- FIX: uma view fina de passagem por MV. View comum (relkind='v') o driver
@@ -634,9 +716,10 @@ CREATE INDEX ix_mv_calculadora_mat ON mv_calculadora(matricula_funcional, data_e
 --   cortar algo a mais, isso vira OUTRA fronteira e sai deste bloco (nao e o caso).
 -- =============================================================================
 
-CREATE VIEW vw_mv_filme_servidor AS SELECT * FROM mv_filme_servidor;
-CREATE VIEW vw_mv_filme_gestor   AS SELECT * FROM mv_filme_gestor;
-CREATE VIEW vw_mv_calculadora    AS SELECT * FROM mv_calculadora;
+CREATE VIEW vw_mv_filme_servidor  AS SELECT * FROM mv_filme_servidor;
+CREATE VIEW vw_mv_filme_gestor    AS SELECT * FROM mv_filme_gestor;
+CREATE VIEW vw_mv_calculadora_folha AS SELECT * FROM mv_calculadora_folha;
+CREATE VIEW vw_mv_calculadora_pss   AS SELECT * FROM mv_calculadora_pss;
 
 -- ── Filme AMIGAVEL (v0.10) ──────────────────────────────────────────────────
 -- View regular (o ODBC ENXERGA, ao contrario da MV) sobre o Filme, com os codigos
