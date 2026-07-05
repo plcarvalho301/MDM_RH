@@ -6,8 +6,10 @@ Animal"). Produz uma base golden-record coerente — FOTO (estado vigente) + EVE
 por seed. Serve para: popular dashboards, exercitar KRs/ADRs, e (fase 2) testar os
 conectores de ingestão real.
 
-**Estado:** fluxo canônico FOTO→EVENTO validado ponta a ponta (0 divergências,
-commit `f3aebb9`). Schema do banco em v0.9.
+**Estado:** fluxo canônico FOTO→EVENTO validado ponta a ponta (0 divergências).
+Schema do banco em **v0.11** (commit `57dd5a8`): rótulos em todas as superfícies
+do painel (`vw_foto`, `vw_lente`, `vw_filme_servidor`, `vw_filme_gestor`) +
+regras de modelo como dado.
 
 ---
 
@@ -27,7 +29,7 @@ commit `f3aebb9`). Schema do banco em v0.9.
               gerador/out/eventos_*.csv → load_eventos.sql → event store (particionado)
                               │
                               ▼
-              schema v0.9 (MVs de Filme, colunas planas) → Power BI (ODBC)
+              schema v0.11 (MVs de Filme, colunas planas, rótulos) → Power BI (ODBC)
 ```
 
 `gen_massa` é **soberano da população**: inventa as pessoas e o estado vigente.
@@ -44,7 +46,7 @@ do passo 4 (o v1 gerava um universo paralelo — a "cagada" já corrigida).
 | `gerador/gerador_eventos.py` | Gera EVENTOS aterrissando na foto. Lê `servidor.csv` + seed do config. |
 | `gerador/semente_trajetorias_v1.yaml` | 14 arquétipos de trajetória (Gerson, Vicente, Bruno…). **Hoje inativo no fluxo** — insumo da fase 2 (casos-teste ricos). |
 | `loader/carrega_foto.py` | Carrega `servidor.csv` → tabela `servidor` (UPSERT, rota de rejeito). |
-| `sql/3_schema_mdm.sql` (v0.9) | Schema do golden record + MVs de Filme/Gestor/Calculadora. |
+| `sql/3_schema_mdm.sql` (v0.11) | Schema do golden record + MVs de Filme/Gestor/Calculadora + views amigáveis (`vw_foto`, `vw_lente`, `vw_filme_*`) com rótulos resolvidos. |
 | `sql/seed_dominios.sql` (v0.2) | Domínios-base (FK-obrigatórios). |
 | `sql/roteiro_retratacao_adr009.sql` | Retratação operacional ponta a ponta (fixture carga_lixo). |
 | `tests/valida_replay_intervalo.py` | Prova que o replay dos eventos re-deriva a foto (0 divergências). |
@@ -113,13 +115,13 @@ Eixos ainda **não** cobertos (fase 2 — teste de conector):
   data_desligamento` (DESLIGAMENTO); e as chaves de PROVIMENTO/PROGRESSAO/
   ALTERACAO_FUNCAO/FECHAMENTO_FOLHA.
 - **Regras de derivação de situação** (a foto não guarda situação como evento; o
-  replay re-deriva por intervalo na data-ref):
-  - base ATIVO + CESSÃO vigente → **CEDIDO** (+ afastamento **40** espelho)
-  - base ATIVO + afastamento **31** vigente → **DISPONIBILIDADE**
+  replay re-deriva por intervalo na data-ref) — **dado desde v0.11**, lido de
+  `dom_afastamento`/`dom_motivo_deslig` (não hardcoded no gerador):
+  - base ATIVO + CESSÃO vigente → **CEDIDO** (+ afastamento **40** espelho, `deriva_situacao`)
+  - base ATIVO + afastamento com `deriva_situacao='DISPONIBILIDADE'` (**31**) → **DISPONIBILIDADE**
   - base ATIVO + afastamento (outro código) → **ATIVO** afastado
-  - DESLIGAMENTO → situação do motivo (dom_motivo_deslig)
-  Hoje essas regras vivem em constantes no `gerador_eventos.py`; deveriam virar
-  **dado** (decisão #5 — pendente).
+  - DESLIGAMENTO → situação do motivo (`dom_motivo_deslig.situacao_resultante`)
+  - `pausa_folha` (hoje só **05**) → folha pula o mês
 - **ADR-008 (coalescência):** fração das intercorrências sai como par
   aberto+fechamento (data_carga mais recente vence); a MV marca `intervalo_vigente`.
 - **ADR-009 (retratação):** cada carga tem `id_carga` próprio (partição destacável).
@@ -127,19 +129,22 @@ Eixos ainda **não** cobertos (fase 2 — teste de conector):
 ## 7. Status
 
 **Feito e verificado:** fluxo canônico FOTO→EVENTO (0 divergências, núcleo +
-estendido); schema v0.9 aplicado; população sincronizada (foto ↔ eventos = mesma
-gente); MVs planas para o PBI; retratação ADR-009 com roteiro executável.
+estendido); população sincronizada (foto ↔ eventos = mesma gente); MVs planas
+para o PBI; retratação ADR-009 com roteiro executável; **rótulos** em todas as
+4 superfícies do painel (v0.10 + fix da `vw_lente`); **regras de modelo como
+dado** (v0.11) — gerador/replay leem `dom_afastamento`/`dom_motivo_deslig` do
+banco, zero regra de domínio hardcoded.
 
 **Limites declarados do v2 (bulk):**
 1. **Casos-teste ricos ausentes.** Todos os 1300 recebem trajetória MECÂNICA.
-   Desligados/inativos saem com motivo único genérico (07/38). Gerson (2
-   desligamentos), Vicente (anulação), Bruno (2 vínculos), Célio (cedido+afastado)
-   etc. **não** têm sua trajetória característica — a foto snapshot não carrega a
-   forma da trajetória.
-2. **Regras de modelo em código, não em dado** (situação→afastamento; nomes amigáveis).
-3. **Só formato interno** (sem emissores de ingestão real; sem destino=banco direto).
-4. **Descritor de evento (frase amigável) inexistente** — só o de-para código→nome
-   das dimensões (dom_afastamento, dom_motivo_deslig) existe.
+   Desligados/inativos saem com motivo único genérico (07/38, calibrado em
+   `config.yaml:deslig_default`). Gerson (2 desligamentos), Vicente (anulação),
+   Bruno (2 vínculos), Célio (cedido+afastado) etc. **não** têm sua trajetória
+   característica — a foto snapshot não carrega a forma da trajetória.
+2. **Só formato interno** (sem emissores de ingestão real; sem destino=banco direto).
+3. **Descritor de evento (frase amigável) inexistente** — o de-para código→nome
+   já existe em toda superfície (rótulo), mas não há composição de frase
+   narrativa ("Afastado por X, de Y a Z").
 
 ---
 
@@ -155,9 +160,10 @@ arquétipo (coluna nova em `servidor.csv`; a foto snapshot não carrega isso). D
 
 **B. Regras de modelo viram dado (decisão #5). ✅ FEITO (schema v0.11).**
 `dom_afastamento.deriva_situacao`/`pausa_folha`; o gerador/replay leem do banco
-(fim do `MOTIVO_DESLIG`/`AFAST_*` hardcoded). Rótulos (E-nível-1) ✅ FEITO (v0.10):
-todo código resolve p/ nome; `vw_foto`/`vw_filme_*` entregam nome pronto. Falta só
-a FRASE amigável (assembler) — refinamento de UX (o "E" grande).*
+(fim do `MOTIVO_DESLIG`/`AFAST_*` hardcoded). Rótulos (E-nível-1) ✅ FEITO (v0.10 +
+fix `vw_lente` em v0.11): todo código resolve p/ nome nas 4 superfícies
+(`vw_foto`, `vw_lente`, `vw_filme_servidor`, `vw_filme_gestor`). Falta só a
+FRASE amigável (assembler) — refinamento de UX (o "E" grande).
 
 **C. Destino = banco direto (decisão #6, parte 1).** `gera_eventos --carrega-banco`
 chama o loader em vez de escrever CSV intermediário. **Esforço baixo;** conveniência
@@ -169,7 +175,11 @@ Refatorar o gerador em núcleo + emissores; `--formato {loader|siape|esocial|ext
 *Maior esforço; é o que valida os conectores. O usuário pediu DEPOIS dos dashboards.*
 
 **E. Descritor de evento (frase amigável).** Construir a escada de fallback do
-`docs/2_descritores_eventos_v0_1.md` (CASE em view). **Depende de:** B.
+`docs/2_descritores_eventos_v0_1.md` (assembler que compõe frase a partir dos
+rótulos, não CASE hardcoded — ver discussão de sessão). **Depende de:** B
+(✅ satisfeita — rótulos e regras já são dado).
 
-**Recomendação de sequência:** B → A (fecham a massa "de verdade" e destravam os
-casos-teste) antes de D (conectores). C encaixa a qualquer momento.
+**Recomendação de sequência:** com B feito, os próximos naturais são **A**
+(casos-teste ricos) e **E** (frase amigável) — ambos já desbloqueados. D
+(conectores) fica para depois dos dashboards, como definido. C encaixa a
+qualquer momento.
