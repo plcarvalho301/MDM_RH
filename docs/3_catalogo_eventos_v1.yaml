@@ -1,0 +1,534 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// MDM-RH — CATÁLOGO DE EVENTOS  (v1.1, rascunho de trabalho)
+// Catálogo PRINCIPAL do event store. Sub-domínios: cadastro, vinculos, intercorrencias, compensacao, jornada (+ desempenho/capacidades no catalogo_estendido).
+// Data: 2026-06-22 | v1.1: 2026-07-05
+//
+// CHANGELOG v1.1 (sessão do handoff do designer / fechamento das lacunas ⚠1–3):
+//   - ALTERACAO_FUNCAO.tipo_movimento distingue dispensa_pedido × dispensa_oficio
+//     (valor de teste do arquétipo Sérgio depende disso).
+//   - ⚠3 FECHADO (ADR-008): término/renovação de cessão e afastamento = data_fim
+//     no payload (atributo de duração), NÃO evento-espelho, NÃO N encadeados.
+//     Renovação sucessiva = N eventos com data_inicio distintas. Fechamento de
+//     evento aberto (data_fim desconhecida na emissão — o caso da vida real) =
+//     SEGUNDO registro imutável do MESMO tipo/chave com data_fim; projeção
+//     coalesce (data_carga mais recente vence — padrão da folha suplementar).
+//     Consequência no replay: intercorrência é INTERVALO que expira por data,
+//     não par AFASTA/RETOMA. Ver obs em AFASTAMENTO e CESSAO.
+//   - ⚠1/⚠2 FECHADOS via ADR-004 (motivo no payload, sem tipo novo): cassação de
+//     aposentadoria = 2º DESLIGAMENTO sobre INATIVO (motivo local CASS_APOSENT);
+//     anulação de provimento = DESLIGAMENTO motivo ANUL_PROVIMENTO ("nunca valeu
+//     — decisão judicial"; semântica retroativa é da projeção, nunca rewrite).
+//     + DEMI_OFICIO (demissão disciplinar, distinta de exoneração de ofício 08).
+//     Verificado (2026-07-05): a Tabela de Domínios eSocial NÃO modela os três —
+//     entram como motivos LOCAIS (e_esocial=false), via carga xlsx/csv.
+//   - dom_motivo_deslig agora É tabela (schema v0.8; seed v0.2 seção 12).
+//   - PROGRESSAO: regra trivial p/ massa fechada (portaria mensal na competência
+//     do ingresso; grade EPPGG do seed §9; interstício 12m). Gate ativo=false
+//     permanece = fora da Calculadora, NÃO bloqueia geração/registro.
+//
+// RELAÇÃO COM OS OUTROS ARQUIVOS DO CORPUS
+//   - Este é o catálogo principal de eventos. Mora junto: vínculos, compensação,
+//     e qualquer eixo futuro que nasça POR USO.
+//     vivem no 3_catalogo_estendido_v1 (eixo profissional), SEPARADO de propósito:
+//     dependência
+//     externa e está fora do escopo de descoberta atual. NÃO foi fundido aqui.
+//   - `catalogo_financeiro_v0_1.yaml` foi ABSORVIDO por este arquivo (Parte do
+//     eixo compensação abaixo). O arquivo solto MORRE — não subir mais ao corpus.
+//   - `3_depara_vinculo_v0_4.md` (+ `3_depara_cadastro_v0_1.md`) é a FOTO (estado vigente live; o que o servidor vê no
+//     SouGov). NÃO é evento. Os eventos aqui são a face-histórico do que, na foto,
+//     é o face-agora.
+//
+// REGRA DE FRONTEIRA FOTO × EVENTO (fechada nesta sessão)
+//   FOTO  = o vigente live (o que o SouGov mostra ao servidor). Sempre existe.
+//   EVENTO = a série datada DAQUILO QUE PRECISA SER CATEGORIZADO OU EXIBIDO.
+//   O tipo de evento nasce POR USO (categorizar p/ Calculadora, ou exibir no
+//   Filme) — não por completude do mundo. MDM é SoR, não SoT: o que fica só na
+//   foto e ninguém precisa como histórico NÃO vira evento.
+//   MAS: uma vez que o tipo existe, a SÉRIE é EXAUSTIVA dentro do escopo dele —
+//   completude de série É a função do evento (ex.: cálculo de aposentadoria de
+//   quem entrou em 1982 exige TODOS os fechamentos de folha, não uma amostra).
+//
+// DOIS EIXOS ORTOGONAIS (herdados do envelope `evento`, sem campo novo)
+//   natureza : FOTO/sobrescreve | event-aditivo | event-transição
+//   origem   : cod_mecanica = {ingestao, extracao}
+//   A separação natureza vs. origem, e o ONDE ela é decidida (no fluxo de
+//   ingestão, não na fonte), está fechada em ADR-006.
+// ─────────────────────────────────────────────────────────────────────────────
+
+
+// =============================================================================
+// PARTE 1 — EXTENSÃO DE `sub_dominio_dom`
+// =============================================================================
+// Lembrete: sub-domínio `vinculo` usa classe_transicao (máquina de estados);
+// sub-domínios aditivos têm classe_transicao NULA.
+
+sub_dominio_dom:
+
+  - cod_sub_dominio: cadastro
+    descricao: "Raiz cadastral do servidor (identidade): nome, CPF, filiação, endereço."
+    classe_transicao: null
+    obs: >
+      Módulo próprio no Sigepe ("Validação Cadastral"). Quase 100% face-FOTO
+      (vigente, sobrescreve) — provavelmente NÃO gera evento (SoR, não SoT:
+      ninguém historiza mudança de endereço). Gaveta existe para o dado existir
+      live; só vira evento se algum dado de identidade precisar de trajetória.
+
+  - cod_sub_dominio: vinculos
+    descricao: "Eventos que transitam o estado do vínculo do servidor."
+    classe_transicao: aplicavel            # máquina de estados; replay deriva situacao_funcional
+    obs: >
+      JÁ DECLARADO no envelope. Formalizado AQUI pela primeira vez. Fonte:
+      eSocial via Sigepe (S-22xx). A FOTO consome o ESTADO RESOLVIDO deste
+      sub-domínio (situacao_funcional vigente); o histórico consome a SÉRIE.
+      Exercício NÃO é gaveta própria — é atributo do vínculo (órgão de vínculo ×
+      órgão de exercício coexistem na cessão; multi-vínculo = N por CPF).
+
+  - cod_sub_dominio: intercorrencias
+    descricao: "Afastamentos, licenças, férias — intervalos sobre o vínculo, sem encerrá-lo."
+    classe_transicao: aplicavel            # AFASTA/RETOMA; o vínculo persiste, a intercorrência é um intervalo
+    obs: >
+      Separado de `vinculos` de propósito: afastamento NÃO muda o laço — o servidor
+      continua vinculado, só está afastado. Outra natureza. Um tipo de evento
+      (AFASTAMENTO); o motivo (S-2230) está no payload e referencia dom_afastamento,
+      que carrega conta_efetivo_exercicio (KR 2.2) e impacto previdenciário por motivo.
+
+  - cod_sub_dominio: jornada
+    descricao: "Execução do trabalho: entregas e planos de trabalho do PGD."
+    classe_transicao: null
+    obs: >
+      Lado EXECUÇÃO do PGD (o que foi entregue/trabalhado), distinto da AVALIAÇÃO
+      (que é `desempenho`). Gaveta declarada, VAZIA por ora: sem ponto eletrônico
+      e sem ingestão de PGD hoje. Existe para receber quando a fonte abrir.
+
+  - cod_sub_dominio: compensacao
+    descricao: "Fechamentos de folha de pagamento (remuneração histórica)."
+    classe_transicao: null                 # ADITIVO. Folha não transita vínculo; só soma.
+    obs: >
+      Migrado do catalogo_financeiro_v0_1 (absorvido). Log aditivo. Um evento =
+      um fechamento de folha de uma competência. Fonte: consultaDadosFinanceiros-
+      Historico (SIAPE). Completude de série exaustiva é a função (cálculo PSS).
+
+
+// =============================================================================
+// PARTE 2 — CLASSES DE TRANSIÇÃO DO VÍNCULO  (`classe_transicao_dom`)
+// =============================================================================
+// O sub-domínio vinculos é máquina de estados. Cada tipo de evento de vínculo
+// carrega uma classe de transição que diz COMO ele move o estado. Derivado da
+// Tabela de Domínios eSocial/Sigepe (coluna "Impacto Previdenciário" + situação).
+
+classe_transicao_dom:
+  - { cod_classe_transicao: INICIO,    descricao: "Inicia o vínculo (Ativo)." }
+  - { cod_classe_transicao: AFASTA,    descricao: "Suspende/afasta mantendo o vínculo; tem retorno." }
+  - { cod_classe_transicao: RETOMA,    descricao: "Retorna de afastamento/inatividade para Ativo." }
+  - { cod_classe_transicao: ALTERA,    descricao: "Altera atributo do vínculo vigente sem mudar a situação (cargo/função/lotação)." }
+  - { cod_classe_transicao: CEDE,      descricao: "Move para exercício em outro órgão (Cedido), vínculo de origem mantido." }
+  - { cod_classe_transicao: ENCERRA,   descricao: "Encerra o vínculo (Desligado/Inativo)." }
+
+
+// =============================================================================
+// PARTE 3 — `tipo_evento_dom`  —  EIXO VÍNCULO  (INSERTs)
+// =============================================================================
+// Derivado DIRETO da Tabela de Domínios eSocial/Sigepe (corpus). Cada tipo traz:
+//   - cod_classe_transicao (Parte 2)
+//   - evento_esocial=true + codigo_esocial (o leiaute que o origina)
+//   - cod_impacto_previdenciario (da coluna da tabela — parâmetro de cálculo)
+//   - conta_efetivo_exercicio só se aplica a AFASTA (KR 2.2); senão herda do estado
+//
+// NOTA DE FONTE: o RETROATIVO de cargo/lotação/função/classe NÃO vem da API
+//   (sem endpoint *Historico). Estes tipos EXISTEM no catálogo; a alimentação
+//   histórica deles é Extrator (varredura — ver 3_arqueologia_extrator_v0_1.yaml)
+//   ou diff da FOTO pós-go-live. O Extrator NÃO é procurado por nome *HISTORICO:
+//   é qualquer arquivo cujo grão seja fato datado (matrícula repete com datas).
+//   O catálogo nasce completo; a série retroativa é o buraco, e o ledger é o mapa.
+
+tipo_evento_dom:
+
+  // ── INÍCIO ─────────────────────────────────────────────────────────────────
+  - cod_tipo_evento: PROVIMENTO
+    nome: "Nomeação / posse — início do vínculo"
+    cod_sub_dominio: vinculos
+    cod_classe_transicao: INICIO
+    evento_esocial: true
+    codigo_esocial: "S-2200"
+    cod_impacto_previdenciario: INICIO        # "Inicia vínculo previdenciário no RPPS ou RGPS"
+    ativo: true
+    obs: "Situação resultante: Ativo. Data de ingresso vem datada na própria consultaDadosFuncionais (não precisa de Extrator p/ a abertura)."
+
+  // ── ALTERAÇÃO DE ATRIBUTO DO VÍNCULO ────────────────────────────────────────
+  - cod_tipo_evento: ALTERACAO_FUNCAO
+    nome: "Designação / dispensa / exoneração de função comissionada"
+    cod_sub_dominio: vinculos
+    cod_classe_transicao: ALTERA
+    evento_esocial: true
+    codigo_esocial: "S-2206"                  # nmFuncao
+    cod_impacto_previdenciario: ALTERA_BASE   # "Altera base de cálculo; pode incidir sobre parcela comissionada / teto"
+    ativo: true
+    obs: "Não muda situacao_funcional; atualiza funcao_comissionada na FOTO. Série histórica = retroativo (buraco)."
+
+  - cod_tipo_evento: REMOCAO
+    nome: "Remoção — mudança de unidade interna (lotação)"
+    cod_sub_dominio: vinculos
+    cod_classe_transicao: ALTERA
+    evento_esocial: true
+    codigo_esocial: "S-2206"                  # dtAlteracao
+    cod_impacto_previdenciario: NEUTRO        # "Mantém recolhimento intacto; muda apenas a UORG"
+    ativo: true
+    obs: "Muda cod_unidade_lotacao. Série histórica de lotação = retroativo (buraco / hipótese COBOL)."
+
+  - cod_tipo_evento: PROGRESSAO
+    nome: "Progressão / promoção — mudança de classe/padrão na carreira"
+    cod_sub_dominio: vinculos
+    cod_classe_transicao: ALTERA
+    evento_esocial: false                     # NÃO há leiaute eSocial próprio; deriva de mudança de classe/padrão
+    codigo_esocial: null
+    cod_impacto_previdenciario: ALTERA_BASE
+    ativo: false                              # GATE: parâmetros de carreira a fechar com RH antes de entrar na Calculadora
+    obs: >
+      A FOTO traz classe/padrão VIGENTES (consultaDadosFuncionais: codClasse/
+      codPadrao). A progressão é a mudança DATADA disso. Sem leiaute eSocial —
+      é inferida de diff de classe/padrão. ativo=false até o RH fechar regras de
+      carreira (interstício, requisitos). Candidato a evento de extração no retroativo.
+
+  // ── AFASTAMENTO  (um tipo, motivo no payload via dom_afastamento) ────────────
+  - cod_tipo_evento: AFASTAMENTO
+    nome: "Afastamento / licença (motivo no payload)"
+    cod_sub_dominio: intercorrencias
+    cod_classe_transicao: AFASTA
+    evento_esocial: true
+    codigo_esocial: "S-2230"
+    cod_impacto_previdenciario: VARIAVEL      # depende do motivo — vem de dom_afastamento, NÃO fixo no tipo
+    ativo: true
+    obs: >
+      UM tipo de evento; o MOTIVO (cód. S-2230) está no payload e referencia
+      dom_afastamento, que carrega conta_efetivo_exercicio (KR 2.2) e o impacto
+      previdenciário POR motivo. Fonte histórica COMPLETA: consultaDadosAfastamento-
+      Historico (datado, ingestão direta — NÃO é buraco). Inclui os ~20 motivos da
+      Tabela de Domínios (doença, maternidade, licenças, disponibilidade cód.31, etc).
+
+  // ── CESSÃO ───────────────────────────────────────────────────────────────────
+  - cod_tipo_evento: CESSAO
+    nome: "Cessão / exercício em outro órgão"
+    cod_sub_dominio: vinculos
+    cod_classe_transicao: CEDE
+    evento_esocial: true
+    codigo_esocial: "S-2231"                  # dtIniCessao
+    cod_impacto_previdenciario: MANTEM_ORIGEM # "Mantém recolhimento na origem, conforme ônus da cessão"
+    ativo: true
+    obs: "Situação resultante: Cedido. Também aparece como S-2230 cód.40 (afastamento p/ cessão) — reconciliar na ingestão."
+
+  // ── RETORNO ──────────────────────────────────────────────────────────────────
+  - cod_tipo_evento: RETORNO_VINCULO
+    nome: "Reversão / recondução / reintegração — retorno ao serviço"
+    cod_sub_dominio: vinculos
+    cod_classe_transicao: RETOMA
+    evento_esocial: true
+    codigo_esocial: "S-2298"                  # tpReint: 1=reintegração, 3=reversão, 4=recondução
+    cod_impacto_previdenciario: RETOMADA      # "Transição de Inativo para Ativo; restaura contribuição integral"
+    ativo: true
+    obs: >
+      tpReint distingue o sub-motivo no payload: 1=Reintegração (refaz averbação
+      retroativa), 3=Reversão (Inativo->Ativo), 4=Recondução. Situação resultante: Ativo.
+
+  // ── ENCERRAMENTO  (um tipo, motivo de desligamento no payload) ───────────────
+  - cod_tipo_evento: DESLIGAMENTO
+    nome: "Desligamento / aposentadoria / vacância / óbito (motivo no payload)"
+    cod_sub_dominio: vinculos
+    cod_classe_transicao: ENCERRA
+    evento_esocial: true
+    codigo_esocial: "S-2299"                  # mtvDeslig
+    cod_impacto_previdenciario: FIM           # encerra (exoneração/vacância/óbito) OU transição p/ Inativo (aposentadoria)
+    ativo: true
+    obs: >
+      UM tipo; o mtvDeslig está no payload e separa os casos da Tabela de Domínios:
+      07/08=exoneração (Fim/Desligado), 09=óbito (Fim), 25=vacância (Fim),
+      38/39=aposentadoria (Inativo, NÃO Desligado — transição p/ inativo), 29/37=
+      redistribuição (transfere vínculo). Situação resultante depende do motivo —
+      por isso o motivo é payload, não tipos separados.
+
+
+// =============================================================================
+// PARTE 4 — `tipo_evento_dom`  —  EIXO FINANCEIRO  (migrado, absorvido)
+// =============================================================================
+  - cod_tipo_evento: FECHAMENTO_FOLHA
+    nome: "Fechamento de folha de pagamento (competência)"
+    cod_sub_dominio: compensacao
+    cod_classe_transicao: null               # aditivo
+    evento_esocial: false
+    codigo_esocial: null
+    cod_impacto_previdenciario: null         # impacto é DERIVADO no cálculo, não rótulo do evento
+    ativo: true
+    obs: >
+      O FATO é o fechamento da folha (RH fecha em bloco, no mês). UM evento = UMA
+      competência de UM servidor (por vínculo). cod_mecanica=ingestao p/ a parte
+      SIAPE; o retroativo pré-SIAPE (até 1982) é extração/papel. Completude de
+      série EXAUSTIVA é a função (cálculo de aposentadoria).
+
+
+// =============================================================================
+// PARTE 5 — PAYLOADS  (schema fechado por tipo)
+// =============================================================================
+// Proveniência (cod_origem, cod_mecanica, grau_confianca, documento_fonte) vive
+// no envelope `evento`, não se repete aqui. data_efeito do envelope = data do fato.
+
+payloads:
+
+  // ── VÍNCULO ──────────────────────────────────────────────────────────────────
+
+  PROVIMENTO:
+    descricao: "Início do vínculo."
+    campos:
+      - { campo: cod_ocorrencia_ingresso, tipo: text, obrig: false, obs: "codOcorrIngressoServPublico da API" }
+      - { campo: cargo_inicial,   tipo: text, obrig: false, ref: dom_cargo }
+      - { campo: regime_juridico,  tipo: text, obrig: false, ref: dom_regime_juridico }
+
+  ALTERACAO_FUNCAO:
+    descricao: "Designação/dispensa/exoneração de função comissionada."
+    campos:
+      - { campo: cod_funcao,   tipo: text, obrig: false, ref: dom_funcao, obs: "nula = dispensa (saiu da função)" }
+      - { campo: nome_funcao,  tipo: text, obrig: false }
+      - { campo: tipo_movimento, tipo: text, obrig: true, obs: "{designacao, dispensa_pedido, dispensa_oficio, exoneracao} — v1.1: dispensa desdobrada (a pedido × de ofício; teste do Sérgio)" }
+
+  REMOCAO:
+    descricao: "Mudança de unidade de lotação."
+    campos:
+      - { campo: cod_unidade_origem,  tipo: int, obrig: false, ref: dom_unidade_eorg }
+      - { campo: cod_unidade_destino, tipo: int, obrig: true,  ref: dom_unidade_eorg }
+
+  PROGRESSAO:
+    descricao: "Mudança datada de classe/padrão na carreira."
+    campos:
+      - { campo: classe_origem,  tipo: text, obrig: false, ref: dom_classe }
+      - { campo: classe_destino, tipo: text, obrig: false, ref: dom_classe }
+      - { campo: padrao_origem,  tipo: text, obrig: false, ref: dom_padrao }
+      - { campo: padrao_destino, tipo: text, obrig: false, ref: dom_padrao }
+      - { campo: tipo_progressao, tipo: text, obrig: false, obs: "{progressao, promocao} — a confirmar regras com RH (gate ativo=false)" }
+
+  AFASTAMENTO:
+    descricao: "Afastamento/licença. O MOTIVO carrega os parâmetros de cálculo."
+    campos:
+      - { campo: cod_afastamento, tipo: text, obrig: true, ref: dom_afastamento,
+          obs: "código S-2230. Carrega conta_efetivo_exercicio (KR 2.2) e impacto previdenciário POR motivo." }
+      - { campo: data_inicio, tipo: date, obrig: true }
+      - { campo: data_fim,    tipo: date, obrig: false,
+          obs: >
+            nula = vigente em aberto. FECHAMENTO (ADR-008): quando o fim se torna
+            conhecido, emite-se SEGUNDO registro imutável do mesmo tipo com a mesma
+            chave (matricula, cod_afastamento, data_inicio) e data_fim preenchida;
+            a projeção coalesce (data_carga mais recente vence). Renovação = N
+            eventos com data_inicio distintas. Replay trata como INTERVALO. }
+
+  CESSAO:
+    descricao: "Cessão para outro órgão."
+    // PENDÊNCIA DE INGESTÃO (não é modelagem — requer regra com RH):
+    //   Cessão aparece em DUAS formas na fonte:
+    //     (a) S-2231 (CESSAO próprio, dtIniCessao) — leiaute de movimentação.
+    //     (b) S-2230 cód.40 (afastamento "exercício em outro órgão") — leiaute de afastamento.
+    //   São o mesmo fato funcional com dois espelhos. Cenários esquisitos existem
+    //   (ex.: servidor cedido que também tem afastamento médico no mesmo período).
+    //   Regra de reconciliação — qual ingere, ou como deduplicar sem perder o cód.40
+    //   no dom_afastamento — precisa ser fechada com o RH antes da pipeline de ingestão.
+    //   Até lá: o event store pode receber os dois; a projeção decide qual prevalece.
+    campos:
+      - { campo: orgao_cessionario, tipo: text, obrig: false }
+      - { campo: data_inicio,       tipo: date, obrig: true,  obs: "dtIniCessao" }
+      - { campo: data_fim,          tipo: date, obrig: false,
+          obs: "mesma regra de fechamento/coalescência do AFASTAMENTO (ADR-008); expirada a data_fim, o replay devolve o vínculo à origem SEM evento de retorno" }
+      - { campo: onus,              tipo: text, obrig: false, obs: "{com_onus, sem_onus} — afeta repasse previdenciário" }
+
+  RETORNO_VINCULO:
+    descricao: "Reversão/recondução/reintegração."
+    campos:
+      - { campo: tipo_retorno, tipo: text, obrig: true,
+          obs: "{reintegracao (tpReint=1), reversao (=3), reconducao (=4)}" }
+
+  DESLIGAMENTO:
+    descricao: "Encerramento do vínculo. O MOTIVO determina a situação resultante."
+    campos:
+      - { campo: cod_motivo_deslig, tipo: text, obrig: true, ref: dom_motivo_deslig,
+          obs: >
+            mtvDeslig (S-2299). Separa: 07/08=exoneração, 09=óbito, 25=vacância,
+            38/39=aposentadoria (-> Inativo, não Desligado), 29/37=redistribuição.
+            A situação resultante (Desligado vs Inativo) é DERIVADA deste código." }
+      - { campo: data_desligamento, tipo: date, obrig: true }
+
+  // ── FINANCEIRO  (migrado integralmente do catalogo_financeiro_v0_1) ──────────
+
+  FECHAMENTO_FOLHA:
+    descricao: "Conjunto de rubricas de UMA competência fechada (espelha consultaDadosFinanceirosHistorico)."
+    campos:
+      - { campo: mes_competencia, tipo: text, obrig: true,
+          obs: "AAAAMM. A que mês a remuneração se REFERE. Chave de coalescência." }
+      - { campo: mes_pagamento, tipo: text, obrig: true,
+          obs: "AAAAMM. Quando entrou na folha. ≠ competência no suplementar/retroativo. CRÍTICO p/ PSS." }
+      - { campo: tipo_fechamento, tipo: text, obrig: true,
+          obs: "{normal, suplementar} — MAPEIA indicadorMovSupl da API. Suplementar SOMA (valor pode ser negativo)." }
+      - campo: rubricas
+        tipo: "list<obj>"
+        obrig: true
+        obs: "A folha como veio. Lista, não tabela relacional. dom_rubrica fica p/ o futuro (verificação de erro)."
+        item:
+          - { campo: cod_rubrica,   tipo: int,     obrig: true,  obs: "codRubrica; ref futura dom_rubrica" }
+          - { campo: nome_rubrica,  tipo: text,    obrig: true,  obs: "nomeRubrica" }
+          - { campo: valor_rubrica, tipo: numeric, obrig: true,  obs: "valorRubrica COM SINAL; negativo somado como -X" }
+          - { campo: indicador_rd,  tipo: text,    obrig: true,  obs: "{R,D} rendimento/desconto; sem isto a soma não fecha" }
+          - { campo: numero_seq,    tipo: int,     obrig: true,  obs: "numeroSeq; preserva ordem" }
+          - { campo: prazo_rubrica,  tipo: int,    obrig: false, obs: "pzRubrica" }
+          - { campo: periodo_rubrica, tipo: int,   obrig: false, obs: "peRubrica" }
+          - { campo: data_ano_mes_rubrica, tipo: text, obrig: false, obs: "dataAnoMesRubrica" }
+    # COALESCÊNCIA: chave = mes_competencia + vínculo. Suplementar SOMA à competência
+    #   (inclui valor negativo). Retificação-que-substitui: vale o mes_pagamento mais
+    #   recente. QUAL caso aplica é decisão do cálculo/RH, não do MDM. Event store
+    #   guarda os dois fechamentos imutáveis; a projeção decide. Não há cod_folha:
+    #   a API §4.20 não entrega tipo de folha; 13º/férias são RUBRICAS (projeção por cod_rubrica).
+
+
+// =============================================================================
+// PARTE 6 — DOMÍNIOS NOVOS REFERENCIADOS  (a popular; MDM consome, não é dono)
+// =============================================================================
+// Já existentes no corpus: dom_situacao_vinculo, dom_unidade_eorg, dom_cargo,
+// dom_funcao, dom_regime_juridico, dom_classe, dom_padrao (estes do 3_depara_vinculo).
+//
+// NOVO aqui (populados nesta versão):
+dominios_novos:
+
+  dom_afastamento:
+    pk: cod_afastamento
+    dono: "externo (Sigepe/eSocial — tabela S-2230)"
+    natureza: fechado
+    obs: >
+      Referenciado pelo payload de AFASTAMENTO (campo cod_afastamento).
+      Carrega os dois atributos de cálculo por motivo: conta_efetivo_exercicio (KR 2.2)
+      e impacto_previdenciario. Fonte: Tabela de Domínios Sigepe/eSocial (corpus).
+      Valores abaixo são os motivos mapeados — lista pode crescer na varredura do RH.
+    valores:
+      // conta_efetivo_exercicio: sim | nao | parcial
+      // impacto_previdenciario:  mantém | suspende | suspende_salvo_facultativo | proporcional | transicao_inativo | inicio | retomada | transfere
+      - { cod: "01", nome: "Acidente/Doença do Trabalho",              esocial: "S-2230 cód.01", conta_efetivo_exercicio: sim,     impacto_previdenciario: "mantém (Ativo)" }
+      - { cod: "03", nome: "Acidente/Doença não relacionada ao trabalho", esocial: "S-2230 cód.03", conta_efetivo_exercicio: sim,  impacto_previdenciario: "mantém (Ativo) — até 24 meses" }
+      - { cod: "07", nome: "Acompanhamento Familiar",                  esocial: "S-2230 cód.07", conta_efetivo_exercicio: parcial, impacto_previdenciario: "suspende_salvo_facultativo — após 30 dias sem remuneração" }
+      - { cod: "06", nome: "Aposentadoria por Invalidez",              esocial: "S-2230 cód.06", conta_efetivo_exercicio: nao,     impacto_previdenciario: "transicao_inativo — contribui só sobre excedente do teto RPPS" }
+      - { cod: "15", nome: "Gozo de Férias ou Recesso",                esocial: "S-2230 cód.15", conta_efetivo_exercicio: sim,     impacto_previdenciario: "mantém (Ativo)" }
+      - { cod: "17-20,35,43", nome: "Licença Maternidade (e variantes)", esocial: "S-2230 cód.17-20,35,43", conta_efetivo_exercicio: sim, impacto_previdenciario: "mantém (Ativo)" }
+      - { cod: "10", nome: "Licença Estatutária COM remuneração",      esocial: "S-2230 cód.10", conta_efetivo_exercicio: sim,     impacto_previdenciario: "mantém (Ativo)" }
+      - { cod: "05", nome: "Licença Estatutária SEM remuneração",      esocial: "S-2230 cód.05", conta_efetivo_exercicio: nao,     impacto_previdenciario: "suspende — salvo recolhimento facultativo" }
+      - { cod: "40", nome: "Exercício em outro órgão (Cedido)",        esocial: "S-2230 cód.40 / S-2231", conta_efetivo_exercicio: sim, impacto_previdenciario: "mantém na origem — exige controle de repasse do cessionário",
+          obs: "Também aparece como S-2231 (CESSAO). Ver pendência de reconciliação no payload de CESSAO." }
+      - { cod: "22,36", nome: "Mandato Eleitoral / Eletivo em Comissão", esocial: "S-2230 cód.22,36", conta_efetivo_exercicio: sim, impacto_previdenciario: "recolhe como se em exercício na origem" }
+      - { cod: "12,13", nome: "Cargo Eletivo — Candidato",             esocial: "S-2230 cód.12,13", conta_efetivo_exercicio: parcial, impacto_previdenciario: "suspende_salvo_facultativo — período sem remuneração" }
+      - { cod: "24", nome: "Mandato Sindical",                         esocial: "S-2230 cód.24", conta_efetivo_exercicio: sim,     impacto_previdenciario: "recolhe como se em exercício na origem" }
+      - { cod: "29", nome: "Serviço Militar",                          esocial: "S-2230 cód.29", conta_efetivo_exercicio: sim,     impacto_previdenciario: "mantém — CLT/RGPS: órgão continua obrigado a recolher FGTS" }
+      - { cod: "11", nome: "Cárcere",                                  esocial: "S-2230 cód.11", conta_efetivo_exercicio: sim,     impacto_previdenciario: "suspende — se houver suspensão total de remuneração" }
+      - { cod: "25", nome: "Mulher vítima de violência",               esocial: "S-2230 cód.25", conta_efetivo_exercicio: sim,     impacto_previdenciario: "mantém (Ativo)" }
+      - { cod: "21,39,45", nome: "Suspensão contratual",               esocial: "S-2230 cód.21,39,45", conta_efetivo_exercicio: nao, impacto_previdenciario: "suspende_salvo_facultativo" }
+      - { cod: "31", nome: "Servidor em Disponibilidade",              esocial: "S-2230 cód.31", conta_efetivo_exercicio: sim,     impacto_previdenciario: "proporcional — base = valor dos proventos de disponibilidade" }
+
+  dom_motivo_deslig:
+    pk: cod_motivo_deslig
+    dono: "externo (eSocial/Sigepe — mtvDeslig do S-2299)"
+    natureza: fechado
+    obs: >
+      Motivos de desligamento. Determina situação resultante (Desligado vs Inativo).
+      v1.1: agora É tabela (schema v0.8, seed v0.2 §12). Comporta motivos LOCAIS
+      não-eSocial (e_esocial=false) — verificado que a Tabela de Domínios não
+      modela cassação/anulação/demissão. Código local é mnemônico em TEXTO de
+      propósito (número inventado seria confundido com mtvDeslig real).
+    valores_conhecidos:
+      - { cod: "07", nome: "Exoneração a pedido",     resultado: Desligado }
+      - { cod: "08", nome: "Exoneração de ofício",    resultado: Desligado }
+      - { cod: "09", nome: "Falecimento",             resultado: Desligado }
+      - { cod: "25", nome: "Vacância (inacumulável)", resultado: Desligado }
+      - { cod: "38", nome: "Aposentadoria voluntária", resultado: Inativo }
+      - { cod: "39", nome: "Aposentadoria compulsória", resultado: Inativo }
+      - { cod: "29", nome: "Redistribuição",          resultado: "transfere vínculo" }
+      - { cod: "37", nome: "Redistribuição (variante)", resultado: "transfere vínculo" }
+      // LOCAIS (v1.1, não-eSocial, dono=interno — sessão 2026-07-05):
+      - { cod: "DEMI_OFICIO",     nome: "Demissão de ofício (penalidade disciplinar)",   resultado: Desligado, e_esocial: false }
+      - { cod: "CASS_APOSENT",    nome: "Cassação de aposentadoria",                     resultado: Desligado, e_esocial: false, obs: "2º DESLIGAMENTO sobre estado Inativo (arquétipo Gerson)" }
+      - { cod: "ANUL_PROVIMENTO", nome: "Anulação de provimento (decisão judicial)",     resultado: Desligado, e_esocial: false, obs: "'nunca valeu': semântica retroativa é da projeção/Calculadora, nunca rewrite da série (arquétipo Vicente)" }
+
+
+// =============================================================================
+// PARTE 7 — PENDÊNCIAS / DECISÕES EM ABERTO
+// =============================================================================
+decisoes_em_aberto:
+
+  - item: "PROGRESSAO sem leiaute eSocial"
+    estado: >
+      Progressão/promoção não tem S-22xx próprio — é inferida de diff de classe/
+      padrão. ativo=false (fora da Calculadora) até o RH fechar regras de carreira.
+      v1.1 — ESCLARECIDO: o gate vale SÓ para a Calculadora; classifica()/registro
+      NÃO checam ativo — a massa gera e grava PROGRESSAO normalmente. Regra trivial
+      p/ massa (fechada 2026-07-05): portaria mensal — progride no mês da competência
+      do ingresso, a cada interstício de 12 meses, um degrau da grade EPPGG
+      (seed §9: A/B/C/Especial × I–V, 20 degraus ≈ 20 anos), para no teto.
+      Segue candidata a evento de EXTRAÇÃO no retroativo.
+    quem_decide: "RH (regras REAIS de carreira, p/ Calculadora) + você (fonte do retroativo)."
+
+  - item: "Retroativo de cargo/lotação/função/classe"
+    estado: >
+      Os tipos ALTERACAO_FUNCAO, REMOCAO, PROGRESSAO existem, mas a série
+      histórica deles NÃO vem da API (sem *Historico). Alimentação: diff da FOTO
+      pós-go-live (futuro, de graça) + Extrator (retroativo) + papel pré-SIAPE (OCR).
+      O catálogo está completo; a alimentação tem o buraco.
+      REFRAME (2026-06-22): a fonte do Extrator NÃO é um arquivo *HISTORICO — é
+      qualquer arquivo dos 274 cujo grão seja fato datado (matrícula repete com
+      datas distintas). O COMO entra está em `3_arqueologia_extrator_v0_1.yaml`
+      (protocolo de varredura + ledger). Candidato nº1: SIAPE-ANO-MES-SSER (grão
+      mensal). A varredura roda na extração planejada p/ AGOSTO (kickoff julho) —
+      é cronograma, não risco aberto. Cada arquivo FONTE_EVENTO liga a estes tipos
+      por cod_mecanica=extracao.
+    quem_decide: "Você (varredura Extrator, ledger arqueologia) + RH (profundidade necessária)."
+
+  - item: "Completude financeira até 1982"
+    estado: >
+      FECHAMENTO_FOLHA exige série exaustiva p/ cálculo de aposentadoria. API cobre
+      o período SIAPE; pré-SIAPE é papel (não-estimável). É a alimentação mais cara
+      do projeto. Modelo aguenta; o custo é de garimpo.
+      NOTA (2026-06-22): dentro do período SIAPE, SIAPE-ANO-MES-SSER (Extrator) é
+      candidato a fonte de fechamento mensal em massa — ver ledger em
+      `3_arqueologia_extrator_v0_1.yaml`. NÃO cobre pré-SIAPE (papel/OCR, Tier 3,
+      Fase 5). A Fita Espelho NÃO serve de retroativo: é snapshot mensal que
+      sobrescreve (manual Fita p.6), só teria histórico quem arquivou cada CSV.
+    quem_decide: "PM — dimensionamento de garimpo (Fase 5)."
+
+  - item: "Reconciliação CESSAO: S-2231 vs S-2230 cód.40"
+    estado: "Cessão aparece como evento próprio (S-2231) e como afastamento (S-2230 cód.40). Decidir qual ingere ou como reconciliar p/ não duplicar. Ver comentário no payload de CESSAO."
+    quem_decide: "Você (pipeline de ingestão) + RH (regras de cenários esquisitos — ex.: cedido com afastamento médico simultâneo)."
+
+  - item: "[FECHADO v1.1 → ADR-008] Término/renovação de cessão e afastamento (⚠3 do designer)"
+    estado: >
+      data_fim como atributo de duração; fechamento de evento aberto por SEGUNDO
+      registro do mesmo tipo/chave; coalescência por data_carga (mais recente vence);
+      renovação = N eventos. Replay trata intercorrência como INTERVALO que expira
+      por data — SEM par AFASTA/RETOMA. Impacto no replay do pipeline: validar no
+      smoke test antes de estampar massa (higiene barata, não portão).
+    quem_decide: "Fechado (Tech Lead, 2026-07-05). Ver ADR-008."
+
+  - item: "[FECHADO v1.1 → ADR-004] Cassação de aposentadoria e anulação de provimento (⚠1/⚠2)"
+    estado: >
+      Sem tipo novo: motivos locais de DESLIGAMENTO (CASS_APOSENT, ANUL_PROVIMENTO,
+      + DEMI_OFICIO). Reversão de DOMÍNIO (fato real que reverte estado) ≠ retratação
+      OPERACIONAL (defeito de dado — ADR-009). Não confundir as fixtures de teste.
+    quem_decide: "Fechado (Tech Lead + PM, 2026-07-05); rótulos finais revisáveis com RH/Corregedoria."
+
+  - item: "Chave de deduplicação do loader de AFASTAMENTO"
+    estado: >
+      A API (consultaDadosAfastamentoHistorico) pode devolver o mesmo afastamento
+      em chamadas distintas. Chave candidata: (matricula, cod_afastamento, data_inicio).
+      Caso edge: afastamento cancelado e reiniciado com mesmo código e mesma data_inicio
+      — a chave colide mas são fatos distintos. Decisão trivial de pipeline; o dev resolve.
+    quem_decide: "Dev (loader de AFASTAMENTO). Não depende de RH."
+
+  - item: "Máquina de estados com vínculo simultâneo (acumulação lícita)"
+    estado: >
+      O corpus sabe que 1 CPF tem N matrículas (N vínculos). O que não está explicitado:
+      cada matrícula corre sua PRÓPRIA máquina de estados de forma independente. No replay,
+      o estado de um vínculo NÃO interfere no estado do outro. Consequência concreta:
+        - Um servidor com dois cargos acumuláveis pode estar Ativo em um e Afastado no outro
+          simultaneamente — isso é correto, não anomalia.
+        - A situacao_funcional na FOTO é por matrícula, não por CPF. Não existe "situação do
+          servidor" — existe "situação do vínculo X".
+        - A Calculadora precisa somar/analisar vínculos separadamente antes de agregar.
+      Isso precisa estar explícito no schema do evento (chave inclui matricula, não só CPF)
+      e na documentação da pipeline — senão o primeiro caso de acumulação derruba o pipeline.
+    quem_decide: "Você (modelagem/pipeline). Não depende de RH — é consequência direta do dado 1 CPF : N matrículas já fechado."

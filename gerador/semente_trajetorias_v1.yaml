@@ -1,0 +1,262 @@
+# =============================================================================
+# MDM-RH — SEMENTE DE TRAJETÓRIAS (Reino Animal) — v1
+# Data: 2026-07-05
+# Origem: handoff do designer (historinhas/eventos/xlsx v0.2), NORMALIZADO para
+#   o vocabulário do catálogo v1.1. A planilha do designer permanece artefato
+#   dele; ESTE arquivo é o insumo do gerador (MDM é soberano — a ferramenta
+#   adapta ao modelo, nunca o contrário).
+# Normalizações aplicadas (sessão 2026-07-05):
+#   - Linhas "(fim afastamento)/(fim cessão)/(renovação)" REMOVIDAS: ⚠3 fechado
+#     como data_fim + segundo registro (ADR-008). Duração vive em `duracao_meses`.
+#   - Gerson: cassação = DESLIGAMENTO motivo CASS_APOSENT (⚠1, ADR-004).
+#   - Vicente: anulação = DESLIGAMENTO motivo ANUL_PROVIMENTO (⚠2, ADR-004).
+#   - Elias/Vicente: demissão = motivo DEMI_OFICIO (distinto de exoneração 08).
+#   - Contrato de repetição: AUSENTE/null = contagem aberta (gerador decide);
+#     inteiro = contagem exata; 0 PROIBIDO.
+#   - PROGRESSAO: não listada marco a marco — derivada por REGRA (portaria mensal
+#     na competência do ingresso, interstício 12m, grade EPPGG, para no teto).
+#     `progressao.modo`: minimo_legal (até desligar) | ate_teto | n (contagem).
+#   - Bifurcações do designer NÃO entram na base (são do gerador de desvios,
+#     próximo incremento) — registradas em `bifurcacao` como documentação.
+# Pesos: Camada A = % de PESSOAS (não vínculos; Bruno tem 2). Normalizados dos
+#   96% do designer p/ 100%. ⚠ chute demográfico informado, sem lastro na
+#   população real — corrigir contra o número real quando houver (nota §3 dele).
+# =============================================================================
+
+parametros_default:
+  data_base: 2026-06-30          # "hoje" da massa; FOTO projetada nesta data
+  intersticio_meses: 12          # placeholder confirmado (EPPGG: 20 degraus ≈ 20 anos)
+  grade_carreira:                # seed_dominios §9 (EPPGG, pré-MP 1.286/2024)
+    classes: [A, B, C, ESPECIAL]
+    padroes: [I, II, III, IV, V]
+  frac_fechamento_dois_registros: 0.25   # ADR-008: fração de intercorrências emitidas
+                                         # como par aberto+fechamento (exercita coalescência)
+  pct_acumulacao_bruno: 0.03     # massa v0.3 §6 (A4)
+
+# ---------------------------------------------------------------------------
+# CAMADA A — moldes (peso = fração de PESSOAS; escala com o N do piloto)
+# offset_meses: [min,max] após o marco anterior (jitter por seed).
+# duracao_meses em intercorrências: vira data_fim (ADR-008).
+# ---------------------------------------------------------------------------
+camada_A:
+
+  - id: 1
+    nome: "Wallace Preguição"
+    peso: 0.396                  # 38/96
+    cargo: Analista
+    carreira_anos: [33, 37]
+    progressao: {modo: minimo_legal, repeticao: 6}
+    marcos:
+      - {tipo: DESLIGAMENTO, motivo: "38", marco: fim_carreira}   # aposentadoria voluntária
+    valor_teste: "caso base; ~420 meses de FECHAMENTO_FOLHA (estressor da série)"
+    bifurcacao: "esqueleto estampável: qualquer evento no meio vira variação limpa"
+
+  - id: 9
+    nome: "Sérgio Esquilo"
+    peso: 0.115                  # 11/96
+    cargo: Analista
+    carreira_anos: [15, 22]
+    progressao: {modo: minimo_legal}          # aberta (gerador conta)
+    marcos:
+      - {tipo: REMOCAO, repeticao: null, rep_range: [4, 5], offset_meses: [24, 48]}
+      - {tipo: ALTERACAO_FUNCAO, movimento: designacao, funcao: "FCE 1.10", offset_meses: [6, 18]}
+      - {tipo: ALTERACAO_FUNCAO, movimento: dispensa_pedido, offset_meses: [10, 14]}
+    termina: ativo
+    valor_teste: "REMOCAO em série; dispensa A PEDIDO como motivo distinto"
+
+  - id: 2
+    nome: "Alice Formigão"
+    peso: 0.083                  # 8/96
+    cargo: Analista
+    carreira_anos: [12, 20]
+    progressao: {modo: minimo_legal, repeticao: 2}
+    marcos:
+      - {tipo: ALTERACAO_FUNCAO, movimento: designacao, funcao: "FCE 1.10", offset_meses: [36, 60]}
+      - {tipo: REMOCAO, offset_meses: [6, 18]}
+      - {tipo: ALTERACAO_FUNCAO, movimento: designacao, funcao: "FCE 1.13", offset_meses: [1, 6]}
+      - {tipo: ALTERACAO_FUNCAO, movimento: dispensa_oficio, offset_meses: [12, 30]}
+      - {tipo: ALTERACAO_FUNCAO, movimento: designacao, funcao: "CCE 1.17", muda_unidade: true, offset_meses: [5, 8]}
+    termina: ativo
+    valor_teste: "assume/dispensa/assume; cruza a linha de gestor (≥1.13) nos dois sentidos"
+
+  - id: 7
+    nome: "Carla Cangurina"
+    peso: 0.073                  # 7/96
+    cargo: Analista
+    carreira_anos: [14, 20]
+    progressao: {modo: minimo_legal}
+    marcos:
+      - {tipo: AFASTAMENTO, motivo: "17-20,35,43", duracao_meses: [4, 6], offset_meses: [12, 30]}   # maternidade
+      - {tipo: REMOCAO, offset_meses: [12, 24]}
+      - {tipo: AFASTAMENTO, motivo: "10", duracao_meses: [3, 12], offset_meses: [12, 24]}           # capacitação
+      - {tipo: AFASTAMENTO, motivo: "17-20,35,43", duracao_meses: [4, 6], offset_meses: [12, 24]}   # maternidade 2ª
+      - {tipo: AFASTAMENTO, motivo: "22,36", duracao_meses: [48, 48], offset_meses: [12, 24]}       # mandato eletivo
+      - {tipo: ALTERACAO_FUNCAO, movimento: designacao, funcao: "FCE 1.05", offset_meses: [1, 3]}
+    termina: ativo
+    valor_teste: "um tipo, quatro motivos com efeitos distintos"
+
+  - id: 10
+    nome: "Dagoberto Toupeira"
+    peso: 0.0625                 # 6/96
+    cargo: Analista
+    carreira_anos: [30, 36]
+    progressao: {modo: ate_teto}
+    marcos:
+      - {tipo: ALTERACAO_FUNCAO, movimento: designacao, funcao: "FCE 1.05", offset_meses: [60, 120]}
+      - {tipo: ALTERACAO_FUNCAO, movimento: dispensa_oficio, offset_meses: [7, 7]}
+      - {tipo: DESLIGAMENTO, motivo: "38", marco: fim_carreira}
+    valor_teste: "esgota a régua EPPGG (o sistema aguenta o teto?); função curta em carreira longa"
+
+  - id: 3
+    nome: "Heitor Pavão"
+    peso: 0.0625                 # 6/96
+    cargo: Analista               # designer pôs Agente; massa §5: Agente NUNCA tem FCE → Analista
+    carreira_anos: [10, 16]
+    progressao: {modo: minimo_legal}
+    marcos:
+      - {tipo: ALTERACAO_FUNCAO, movimento: designacao, funcao: "FCE 1.13", offset_meses: [24, 48]}
+      - {tipo: REMOCAO, offset_meses: [10, 22]}
+      - {tipo: ALTERACAO_FUNCAO, movimento: designacao, funcao: "FCE 1.15", offset_meses: [1, 4]}
+      - {tipo: ALTERACAO_FUNCAO, movimento: dispensa_oficio, offset_meses: [10, 22]}
+      - {tipo: REMOCAO, offset_meses: [1, 6]}
+      - {tipo: ALTERACAO_FUNCAO, movimento: designacao, funcao: "CCE 1.18", offset_meses: [1, 4]}
+      - {tipo: DESLIGAMENTO, motivo: "07", offset_meses: [10, 22]}   # exoneração a pedido
+    valor_teste: "ALTERACAO_FUNCAO × REMOCAO em alta frequência; janelas curtas de gestor"
+
+  - id: 5
+    nome: "Olga Corujeira"
+    peso: 0.052                  # 5/96
+    cargo: Tecnico
+    carreira_anos: [28, 34]
+    progressao: {modo: minimo_legal}
+    marcos:
+      - {tipo: DESLIGAMENTO, motivo: "38", marco: fim_carreira_parcial}      # 1ª aposentadoria → INATIVO
+      - {tipo: RETORNO_VINCULO, retorno: reversao, offset_meses: [36, 36]}   # Inativo → Ativo
+      - {tipo: REMOCAO, offset_meses: [0, 2]}
+      - {tipo: DESLIGAMENTO, motivo: "38", offset_meses: [60, 60]}           # 2ª, definitiva
+    valor_teste: "dois DESLIGAMENTOs no mesmo vínculo; folha alternando ativo/inativo"
+
+  - id: 4
+    nome: "Célio Albatroz"
+    peso: 0.052                  # 5/96
+    cargo: Analista
+    carreira_anos: [18, 26]
+    progressao: {modo: minimo_legal}
+    marcos:
+      - {tipo: CESSAO, orgao: "Chancelaria dos Albatrozes", duracao_meses: [48, 84], offset_meses: [36, 72]}
+      - {tipo: AFASTAMENTO, motivo: "03", duracao_meses: [6, 6], durante_cessao: true,
+         forca_dois_registros: true, offset_meses: [12, 24]}     # médico DURANTE a cessão (estados sobrepostos)
+      - {tipo: ALTERACAO_FUNCAO, movimento: designacao, funcao: "FCE 1.07", apos_fim_cessao: true}
+    termina: ativo
+    valor_teste: "cedido E afastado no mesmo período; retorno à origem SEM evento (data_fim da cessão, ADR-008)"
+
+  - id: 13
+    nome: "Caetano Grilo"
+    peso: 0.042                  # 4/96
+    cargo: Analista
+    carreira_anos: [25, 32]
+    progressao: {modo: minimo_legal}
+    marcos:
+      - {tipo: REMOCAO, offset_meses: [60, 120]}
+      - {tipo: CESSAO, orgao: "Banco Central dos Castores", renovacoes: [2, 3],
+         duracao_meses: [24, 36], offset_meses: [12, 24]}        # renovação = N eventos (ADR-008)
+      - {tipo: DESLIGAMENTO, motivo: "38", durante_cessao: true, marco: fim_carreira}
+    valor_teste: "aposenta cedido; termina fora de casa, sem retorno jamais"
+
+  - id: 12
+    nome: "Osmar Galino"
+    peso: 0.031                  # 3/96
+    cargo: Tecnico
+    carreira_anos: [28, 34]
+    progressao: {modo: minimo_legal}          # continua DURANTE o afastamento (motivo 24 conta exercício)
+    marcos:
+      - {tipo: AFASTAMENTO, motivo: "24", renovacoes: [3, 3], duracao_meses: [48, 48],
+         offset_meses: [48, 96]}              # mandato classista: 3 mandatos encadeados ≈ 12 anos
+      - {tipo: DESLIGAMENTO, motivo: "38", marco: fim_carreira}
+    valor_teste: "folha + progressão correndo sob ausência de ~12 anos"
+
+  - id: 6
+    nome: "Bruno Vespertílio"
+    peso: 0.031                  # 3/96 — 1 pessoa, 2 vínculos (acumulação lícita)
+    vinculos:
+      - cargo: Tecnico
+        carreira_anos: [18, 26]
+        progressao: {modo: minimo_legal}
+        marcos: []
+        termina: ativo
+      - cargo: Analista
+        inicia_apos_anos: [6, 12]             # 2º concurso, anos depois
+        carreira_anos: [10, 16]
+        progressao: {modo: minimo_legal}
+        marcos:
+          - {tipo: AFASTAMENTO, motivo: "05", duracao_meses: [24, 24],
+             forca_dois_registros: true, offset_meses: [24, 60]}  # LSV 2 anos — folha PAUSA
+        termina: ativo
+    valor_teste: "estados independentes por matrícula (Ativo em A, Afastado em B no mesmo mês)"
+
+# ---------------------------------------------------------------------------
+# CAMADA B — plantados (contagem FIXA, invariante ao N do piloto; soma POR CIMA)
+# ---------------------------------------------------------------------------
+camada_B:
+
+  - id: 8
+    nome: "Elias Elefante"
+    contagem: 2
+    cargo: Agente                # sem FCE (massa §5) — a 1.05 do designer sai; cadeia disciplinar preservada
+    carreira_anos: [10, 18]
+    progressao: {modo: minimo_legal}
+    marcos:
+      - {tipo: AFASTAMENTO, motivo: "21,39,45", duracao_meses: [3, 6], offset_meses: [48, 96]}  # preventivo disciplinar
+      - {tipo: DESLIGAMENTO, motivo: DEMI_OFICIO, offset_meses: [3, 8]}
+    valor_teste: "cadeia disciplinar canônica: afastamento → demissão de ofício"
+    bifurcacao: "A DE OURO (fora da base): RETORNO_VINCULO reintegração 5 anos depois — buraco na série"
+
+  - id: 11
+    nome: "Gerson Raposão"
+    contagem: 2
+    cargo: Analista
+    carreira_anos: [12, 20]
+    progressao: {modo: minimo_legal}
+    marcos:
+      - {tipo: ALTERACAO_FUNCAO, movimento: designacao, funcao: "CCE 1.17", unidade_tipo: toca_n1,
+         offset_meses: [36, 60]}
+      - {tipo: ALTERACAO_FUNCAO, movimento: dispensa_oficio, offset_meses: [84, 100]}  # investigação
+      - {tipo: DESLIGAMENTO, motivo: "38", offset_meses: [0, 1]}         # aposentadoria de fuga → INATIVO
+      - {tipo: DESLIGAMENTO, motivo: CASS_APOSENT, offset_meses: [8, 18]}  # ⚠1: 2º DESLIGAMENTO sobre INATIVO
+    valor_teste: "manobra de fuga + cassação (Inativo → Desligado)"
+
+  - id: 14
+    nome: "Vicente Cachorro-do-Mato"
+    contagem: 1
+    cargo: Analista
+    carreira_anos: [11, 12]      # queda no 9º ano (marco nono_ano) + cauda p/ demissão+anulação
+    progressao: {modo: minimo_legal, repeticao: 2}
+    marcos:
+      - {tipo: ALTERACAO_FUNCAO, movimento: designacao, funcao: "FCE 1.07", offset_meses: [30, 48]}
+      - {tipo: AFASTAMENTO, motivo: "21,39,45", duracao_meses: [1, 3], marco: nono_ano}   # descoberta
+      - {tipo: ALTERACAO_FUNCAO, movimento: dispensa_oficio, offset_meses: [0, 1]}
+      - {tipo: DESLIGAMENTO, motivo: DEMI_OFICIO, offset_meses: [1, 3]}
+      - {tipo: DESLIGAMENTO, motivo: ANUL_PROVIMENTO, offset_meses: [2, 6]}   # ⚠2: nunca valeu (judicial)
+    valor_teste: "série indistinguível de normal até a queda; anulação como EVENTO (append-only)"
+
+  # Exceções institucionais hard-coded (massa v0.3 §1):
+  - id: 99
+    nome: "Luís Ovolino"
+    contagem: 1
+    fixo: {nome_completo: "Luís Ovolino", funcao: "CCE 1.18", lotacao_nome: "Câmara da Rainha"}
+    cargo: Analista
+    carreira_anos: [25, 30]
+    progressao: {modo: minimo_legal}
+    marcos:
+      - {tipo: ALTERACAO_FUNCAO, movimento: designacao, funcao: "CCE 1.18", offset_meses: [180, 240]}
+    termina: ativo
+  - id: 98
+    nome: "João Equino"
+    contagem: 1
+    fixo: {nome_completo: "João Equino", funcao: "CCE 1.18", lotacao_nome: "Câmara da Rainha"}
+    cargo: Analista
+    carreira_anos: [25, 30]
+    progressao: {modo: minimo_legal}
+    marcos:
+      - {tipo: ALTERACAO_FUNCAO, movimento: designacao, funcao: "CCE 1.18", offset_meses: [180, 240]}
+    termina: ativo

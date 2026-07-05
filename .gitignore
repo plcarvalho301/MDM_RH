@@ -1,8 +1,15 @@
 # credenciais reais — nunca commitar (o .env.example e o modelo versionado)
 loader/.env
 
-# massa gerada — repetivel via gen_massa.py
+# massa gerada — reprodutivel pelos geradores (dados nunca sao versionados)
 gerador/out/
+saida/
+/eventos_carga_*.csv
+/eventos_carga_*.csv.gz
+/foto_projetada.csv
+/servidor.csv
+/cargas.json
+/load_eventos.sql
 
 # python
 __pycache__/

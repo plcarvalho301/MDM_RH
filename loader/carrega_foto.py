@@ -42,7 +42,7 @@ except ImportError:
 NULLABLE = {
     "classe", "padrao", "sigla_nivel_cargo", "funcao_comissionada", "nova_funcao",
     "data_ingresso_nova_funcao", "cod_unidade_exercicio", "regime_juridico",
-    "cod_afastamento_vigente",
+    "data_exercicio_no_orgao", "cod_afastamento_vigente",
 }
 NOT_NULL = {
     "matricula_funcional", "cpf", "nome", "data_nascimento", "cargo",

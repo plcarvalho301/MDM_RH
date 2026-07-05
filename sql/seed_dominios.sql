@@ -1,7 +1,10 @@
 -- =============================================================================
 -- MDM-RH — Seed dos domínios (carga inicial das tabelas dom_*)
--- versao: v0.1
--- ancora: 3_schema_mdm.sql (v0.5) | 3_catalogo_eventos_v1.yaml (v1)
+-- versao: v0.2
+--   v0.2 (2026-07-05): + secao 12 (dom_motivo_deslig — tabela criada no schema v0.8:
+--     mtvDeslig eSocial + 3 motivos LOCAIS: DEMI_OFICIO, CASS_APOSENT, ANUL_PROVIMENTO).
+--     Secao 8 atualizada (dom_motivo_deslig deixa de ser pendencia).
+-- ancora: 3_schema_mdm.sql (v0.8) | 3_catalogo_eventos_v1.yaml (v1.1)
 --         3_depara_foto_v0_3.md | 3_depara_vinculo_v0_4.md
 --         Tabela_de_Dominios_do_Sigepe_eSocial (corpus)
 -- =============================================================================
@@ -165,10 +168,8 @@ ON CONFLICT (cod_tipo_evento) DO NOTHING;
 --     algumas lotacoes apontando p/ UORG inexistente, senao vw_orfao_estrutural
 --     (KR 2.1) vem vazia e o painel delta nao prova o motor de adocao.
 -- dom_motivo_deslig:
---     referenciado pelo PAYLOAD de DESLIGAMENTO (jsonb), NAO por FK de coluna.
---     O schema v0.5 nao criou a tabela dom_motivo_deslig. Na PoC de FOTO nao entra
---     evento, entao nao bloqueia. Quando o eixo evento entrar, criar a tabela
---     (valores no catalogo_eventos Parte 6) ou validar o codigo na aplicacao.
+--     [RESOLVIDO na v0.2] O eixo evento entrou (validado e2e 2026-07-04); a tabela
+--     foi criada no schema v0.8 e o seed vive na SECAO 12 abaixo.
 -- =============================================================================
 
 
@@ -259,142 +260,38 @@ INSERT INTO dom_cargo (cod, nome) VALUES
     ('EPPGG', 'Especialista em Politicas Publicas e Gestao Governamental')
 ON CONFLICT (cod) DO NOTHING;
 
+
 -- =============================================================================
--- 12. dom_funcao — CCE/FCE (Anexo I, Decreto 10.829/2021)  [matriz COMPLETA nacional]
+-- 12. dom_motivo_deslig — motivos de desligamento (v0.2; tabela criada no schema v0.8)
 -- -----------------------------------------------------------------------------
--- FONTE: Anexo I do Decreto 10.829/2021 (matriz categoria x nivel), regra de piso
---   da categoria 4 confirmada pelo Anexo IV (FCT->FCE 4.01..4.11).
--- ESTRUTURA DO CODIGO: '[T]CE C.NN' onde:
---   T  = C (Cargo, livre nomeacao) ou F (Funcao, exclusiva de efetivo)
---   C  = categoria/TRILHA (1=direcao, 2=assessoramento, 3=direcao de projetos,
---        4=assessoramento tecnico especializado) — PRIMEIRO DIGITO = trilha,
---        derivavel por SUBSTR (Decreto 10.829; casa com a regra do corpus).
---   NN = nivel hierarquico (01..18).
--- REGRAS DA MATRIZ (por que nao e produto cartesiano cheio):
---   cat 1: niveis 1..18 (CCE+FCE); nivel 18 = SO CCE 1.18 (sem FCE).
---   cat 2: niveis 1..17 (CCE+FCE).
---   cat 3: niveis 1..16 (CCE+FCE).
---   cat 4: niveis 1..13, SO FCE (nunca CCE) — assessoramento tecnico especializado.
--- ESCOPO REAL: esta e a matriz NACIONAL inteira. O quadro do ORGAO e um SUBCONJUNTO
---   registrado no SIORG (estrutura regimental). Ter a matriz cheia nao custa (uns
---   codigos sem uso na massa); a FK, se aplicada, aceita qualquer FCE valido — bom.
---   Quando o SIORG do orgao for carregado, pode-se restringir a lista ao quadro real.
--- OBS: 'nome' guarda a categoria por extenso + nivel, p/ leitura. A trilha usada
---   pelo produto de scoring (fora do MDM) sai do primeiro digito, nao deste texto.
+-- Referenciada pelo PAYLOAD de DESLIGAMENTO (jsonb; validacao no classifica, sem FK).
+-- DUAS ORIGENS convivem, distinguidas por e_esocial:
+--   e_esocial=true : mtvDeslig do S-2299 (Tabela de Dominios eSocial/Sigepe, corpus).
+--   e_esocial=false: motivos LOCAIS que o eSocial NAO modela (verificado na Tabela
+--     de Dominios em 2026-07-05: cassacao/anulacao/demissao nao constam). Entram
+--     como valor de dominio interno via ADR-004 (motivo no payload) — a via de
+--     "acrescentar evento novo no futuro" (carga xlsx/csv, cod_mecanica=extracao).
+--     Codigo mnemonico em TEXTO de proposito: numero inventado seria confundido
+--     com codigo eSocial real rio abaixo.
+-- situacao_resultante: derivada do motivo (ADR-004) — e o que o replay grava.
+--   CASS_APOSENT e o 2o DESLIGAMENTO sobre estado INATIVO (Inativo -> Desligado).
+--   ANUL_PROVIMENTO = "nunca valeu — decisao judicial"; a semantica retroativa
+--     (zerar tempo) e da PROJECAO/Calculadora, nunca rewrite da serie (append-only).
+--   DEMI_OFICIO = penalidade disciplinar; DISTINTA de exoneracao de oficio (08),
+--     que e saida administrativa sem culpa.
 -- =============================================================================
-INSERT INTO dom_funcao (cod, nome) VALUES
-    ('CCE 1.18', 'CCE - Direcao - nivel 18'),
-    ('CCE 1.17', 'CCE - Direcao - nivel 17'),
-    ('CCE 1.16', 'CCE - Direcao - nivel 16'),
-    ('CCE 1.15', 'CCE - Direcao - nivel 15'),
-    ('CCE 1.14', 'CCE - Direcao - nivel 14'),
-    ('CCE 1.13', 'CCE - Direcao - nivel 13'),
-    ('CCE 1.12', 'CCE - Direcao - nivel 12'),
-    ('CCE 1.11', 'CCE - Direcao - nivel 11'),
-    ('CCE 1.10', 'CCE - Direcao - nivel 10'),
-    ('CCE 1.09', 'CCE - Direcao - nivel 09'),
-    ('CCE 1.08', 'CCE - Direcao - nivel 08'),
-    ('CCE 1.07', 'CCE - Direcao - nivel 07'),
-    ('CCE 1.06', 'CCE - Direcao - nivel 06'),
-    ('CCE 1.05', 'CCE - Direcao - nivel 05'),
-    ('CCE 1.04', 'CCE - Direcao - nivel 04'),
-    ('CCE 1.03', 'CCE - Direcao - nivel 03'),
-    ('CCE 1.02', 'CCE - Direcao - nivel 02'),
-    ('CCE 1.01', 'CCE - Direcao - nivel 01'),
-    ('CCE 2.17', 'CCE - Assessoramento - nivel 17'),
-    ('CCE 2.16', 'CCE - Assessoramento - nivel 16'),
-    ('CCE 2.15', 'CCE - Assessoramento - nivel 15'),
-    ('CCE 2.14', 'CCE - Assessoramento - nivel 14'),
-    ('CCE 2.13', 'CCE - Assessoramento - nivel 13'),
-    ('CCE 2.12', 'CCE - Assessoramento - nivel 12'),
-    ('CCE 2.11', 'CCE - Assessoramento - nivel 11'),
-    ('CCE 2.10', 'CCE - Assessoramento - nivel 10'),
-    ('CCE 2.09', 'CCE - Assessoramento - nivel 09'),
-    ('CCE 2.08', 'CCE - Assessoramento - nivel 08'),
-    ('CCE 2.07', 'CCE - Assessoramento - nivel 07'),
-    ('CCE 2.06', 'CCE - Assessoramento - nivel 06'),
-    ('CCE 2.05', 'CCE - Assessoramento - nivel 05'),
-    ('CCE 2.04', 'CCE - Assessoramento - nivel 04'),
-    ('CCE 2.03', 'CCE - Assessoramento - nivel 03'),
-    ('CCE 2.02', 'CCE - Assessoramento - nivel 02'),
-    ('CCE 2.01', 'CCE - Assessoramento - nivel 01'),
-    ('CCE 3.16', 'CCE - Direcao de Projetos - nivel 16'),
-    ('CCE 3.15', 'CCE - Direcao de Projetos - nivel 15'),
-    ('CCE 3.14', 'CCE - Direcao de Projetos - nivel 14'),
-    ('CCE 3.13', 'CCE - Direcao de Projetos - nivel 13'),
-    ('CCE 3.12', 'CCE - Direcao de Projetos - nivel 12'),
-    ('CCE 3.11', 'CCE - Direcao de Projetos - nivel 11'),
-    ('CCE 3.10', 'CCE - Direcao de Projetos - nivel 10'),
-    ('CCE 3.09', 'CCE - Direcao de Projetos - nivel 09'),
-    ('CCE 3.08', 'CCE - Direcao de Projetos - nivel 08'),
-    ('CCE 3.07', 'CCE - Direcao de Projetos - nivel 07'),
-    ('CCE 3.06', 'CCE - Direcao de Projetos - nivel 06'),
-    ('CCE 3.05', 'CCE - Direcao de Projetos - nivel 05'),
-    ('CCE 3.04', 'CCE - Direcao de Projetos - nivel 04'),
-    ('CCE 3.03', 'CCE - Direcao de Projetos - nivel 03'),
-    ('CCE 3.02', 'CCE - Direcao de Projetos - nivel 02'),
-    ('CCE 3.01', 'CCE - Direcao de Projetos - nivel 01'),
-    ('FCE 1.17', 'FCE - Direcao - nivel 17'),
-    ('FCE 1.16', 'FCE - Direcao - nivel 16'),
-    ('FCE 1.15', 'FCE - Direcao - nivel 15'),
-    ('FCE 1.14', 'FCE - Direcao - nivel 14'),
-    ('FCE 1.13', 'FCE - Direcao - nivel 13'),
-    ('FCE 1.12', 'FCE - Direcao - nivel 12'),
-    ('FCE 1.11', 'FCE - Direcao - nivel 11'),
-    ('FCE 1.10', 'FCE - Direcao - nivel 10'),
-    ('FCE 1.09', 'FCE - Direcao - nivel 09'),
-    ('FCE 1.08', 'FCE - Direcao - nivel 08'),
-    ('FCE 1.07', 'FCE - Direcao - nivel 07'),
-    ('FCE 1.06', 'FCE - Direcao - nivel 06'),
-    ('FCE 1.05', 'FCE - Direcao - nivel 05'),
-    ('FCE 1.04', 'FCE - Direcao - nivel 04'),
-    ('FCE 1.03', 'FCE - Direcao - nivel 03'),
-    ('FCE 1.02', 'FCE - Direcao - nivel 02'),
-    ('FCE 1.01', 'FCE - Direcao - nivel 01'),
-    ('FCE 2.17', 'FCE - Assessoramento - nivel 17'),
-    ('FCE 2.16', 'FCE - Assessoramento - nivel 16'),
-    ('FCE 2.15', 'FCE - Assessoramento - nivel 15'),
-    ('FCE 2.14', 'FCE - Assessoramento - nivel 14'),
-    ('FCE 2.13', 'FCE - Assessoramento - nivel 13'),
-    ('FCE 2.12', 'FCE - Assessoramento - nivel 12'),
-    ('FCE 2.11', 'FCE - Assessoramento - nivel 11'),
-    ('FCE 2.10', 'FCE - Assessoramento - nivel 10'),
-    ('FCE 2.09', 'FCE - Assessoramento - nivel 09'),
-    ('FCE 2.08', 'FCE - Assessoramento - nivel 08'),
-    ('FCE 2.07', 'FCE - Assessoramento - nivel 07'),
-    ('FCE 2.06', 'FCE - Assessoramento - nivel 06'),
-    ('FCE 2.05', 'FCE - Assessoramento - nivel 05'),
-    ('FCE 2.04', 'FCE - Assessoramento - nivel 04'),
-    ('FCE 2.03', 'FCE - Assessoramento - nivel 03'),
-    ('FCE 2.02', 'FCE - Assessoramento - nivel 02'),
-    ('FCE 2.01', 'FCE - Assessoramento - nivel 01'),
-    ('FCE 3.16', 'FCE - Direcao de Projetos - nivel 16'),
-    ('FCE 3.15', 'FCE - Direcao de Projetos - nivel 15'),
-    ('FCE 3.14', 'FCE - Direcao de Projetos - nivel 14'),
-    ('FCE 3.13', 'FCE - Direcao de Projetos - nivel 13'),
-    ('FCE 3.12', 'FCE - Direcao de Projetos - nivel 12'),
-    ('FCE 3.11', 'FCE - Direcao de Projetos - nivel 11'),
-    ('FCE 3.10', 'FCE - Direcao de Projetos - nivel 10'),
-    ('FCE 3.09', 'FCE - Direcao de Projetos - nivel 09'),
-    ('FCE 3.08', 'FCE - Direcao de Projetos - nivel 08'),
-    ('FCE 3.07', 'FCE - Direcao de Projetos - nivel 07'),
-    ('FCE 3.06', 'FCE - Direcao de Projetos - nivel 06'),
-    ('FCE 3.05', 'FCE - Direcao de Projetos - nivel 05'),
-    ('FCE 3.04', 'FCE - Direcao de Projetos - nivel 04'),
-    ('FCE 3.03', 'FCE - Direcao de Projetos - nivel 03'),
-    ('FCE 3.02', 'FCE - Direcao de Projetos - nivel 02'),
-    ('FCE 3.01', 'FCE - Direcao de Projetos - nivel 01'),
-    ('FCE 4.13', 'FCE - Assessoramento Tecnico Especializado - nivel 13'),
-    ('FCE 4.12', 'FCE - Assessoramento Tecnico Especializado - nivel 12'),
-    ('FCE 4.11', 'FCE - Assessoramento Tecnico Especializado - nivel 11'),
-    ('FCE 4.10', 'FCE - Assessoramento Tecnico Especializado - nivel 10'),
-    ('FCE 4.09', 'FCE - Assessoramento Tecnico Especializado - nivel 09'),
-    ('FCE 4.08', 'FCE - Assessoramento Tecnico Especializado - nivel 08'),
-    ('FCE 4.07', 'FCE - Assessoramento Tecnico Especializado - nivel 07'),
-    ('FCE 4.06', 'FCE - Assessoramento Tecnico Especializado - nivel 06'),
-    ('FCE 4.05', 'FCE - Assessoramento Tecnico Especializado - nivel 05'),
-    ('FCE 4.04', 'FCE - Assessoramento Tecnico Especializado - nivel 04'),
-    ('FCE 4.03', 'FCE - Assessoramento Tecnico Especializado - nivel 03'),
-    ('FCE 4.02', 'FCE - Assessoramento Tecnico Especializado - nivel 02'),
-    ('FCE 4.01', 'FCE - Assessoramento Tecnico Especializado - nivel 01')
-ON CONFLICT (cod) DO NOTHING;
+INSERT INTO dom_motivo_deslig (cod_motivo_deslig, nome_motivo, situacao_resultante, e_esocial) VALUES
+    -- eSocial (mtvDeslig, S-2299):
+    ('07', 'Exoneracao a pedido',        'DESLIGADO', true),
+    ('08', 'Exoneracao de oficio',       'DESLIGADO', true),
+    ('09', 'Falecimento',                'DESLIGADO', true),
+    ('25', 'Vacancia (inacumulavel)',    'DESLIGADO', true),
+    ('38', 'Aposentadoria voluntaria',   'INATIVO',   true),
+    ('39', 'Aposentadoria compulsoria',  'INATIVO',   true),
+    ('29', 'Redistribuicao',             'TRANSFERE', true),
+    ('37', 'Redistribuicao (variante)',  'TRANSFERE', true),
+    -- LOCAIS (nao-eSocial; dono=interno; sessao 2026-07-05):
+    ('DEMI_OFICIO',     'Demissao de oficio (penalidade disciplinar)',            'DESLIGADO', false),
+    ('CASS_APOSENT',    'Cassacao de aposentadoria (2o desligamento sobre Inativo)', 'DESLIGADO', false),
+    ('ANUL_PROVIMENTO', 'Anulacao de provimento (nunca valeu — decisao judicial)', 'DESLIGADO', false)
+ON CONFLICT (cod_motivo_deslig) DO NOTHING;
