@@ -1,7 +1,7 @@
 -- =============================================================================
 -- MDM-RH — Schema do golden record (FOTO + EVENTO)
 -- versao: v0.11
--- ancora: 3_depara_foto_v0_3.md | 3_catalogo_eventos_v1.yaml (v1.1) | ADR-007 | ADR-008 | ADR-009
+-- ancora: 3_depara_foto_v0_3.md | 3_catalogo_eventos_v1.yaml (v1.1) | ADR-007 | ADR-008 | ADR-009 | ADR-010
 -- =============================================================================
 -- HISTORICO DE VERSAO (versao dentro do arquivo; nome sem versao)
 --   v0.11 (este) — REGRAS DE MODELO viram DADO (o gerador/replay leem do banco, nao

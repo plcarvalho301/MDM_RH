@@ -7,7 +7,7 @@ Registro das decisões arquiteturais do MDM-RH. Duas seções:
 
 Convenção: o catálogo (`3_catalogo_eventos_v1.yaml`) é o **o quê** (schema vivo, muda toda hora). Este arquivo é o **porquê** (decisão, imutável quando numerada). O catálogo referencia a ADR; não repete a justificativa.
 
-Data: 2026-06-23. Última atualização: 2026-07-05 (+ADR-008, +ADR-009).
+Data: 2026-06-23. Última atualização: 2026-07-05 (+ADR-008, +ADR-009, +ADR-010).
 
 ---
 
@@ -177,6 +177,21 @@ Decisão da mesa de engenharia (Tech Lead). O **payload campo-a-campo** de cada 
 4. **Particionamento por id_carga + DETACH + ledger + manifesto.** Escolhida — unifica 1+2+3 num mecanismo só, com menos peças; deleção vira operação de catálogo, não de dados.
 
 **Resultado.** Schema v0.8: `evento` particionada, `fn_particao_carga`, `fn_manifesto_carga`, `ledger_delecao`, `rejeito.id_carga`, procedimento documentado (manifesto → protocolo → ledger → detach → destino → refresh). **Invariante permanente:** toda projeção (MVs, FOTO) é **sempre re-derivada do cru** — nenhuma projeção cacheia efeito de evento sem rastro de carga, senão o detach limpa a base e deixa órfão na projeção (hoje vale: upsert D-1 + REFRESH; proteger em qualquer evolução). A FOTO não ganha `id_carga`: sobrescreve em D-1, retratação dela é o próximo upsert. Decisão da mesa de engenharia com governança confirmada pelo PM (2026-07-05).
+
+---
+
+## ADR-010 — Payload do Filme-Gestor por allowlist de coluna nomeada, não JSONB cru
+
+**Decisão.** `mv_filme_gestor` **não expõe `payload` bruto**. Em vez de subir o JSONB inteiro (ou uma denylist de chaves subtraídas dele), a MV extrai, por **allowlist nomeada**, só as colunas que o recorte gerencial precisa — hoje `cod_afastamento`, `cod_motivo_deslig`, `data_inicio`, `data_fim`, `data_desligamento` (`payload->>'chave'`, tipadas). Cada código sobe **cru** (a tradução para nome humano é responsabilidade da dimensão relacionada — `dom_afastamento`, `dom_motivo_deslig` —, não desta view). Se o payload de um tipo de evento carregar um campo novo, sensível ou não, **ele não aparece na MV** até alguém adicionar a coluna explicitamente. `mv_filme_servidor` é o objeto oposto e complementar: payload **cheio**, porque ali o titular lê o próprio dado (nada a esconder dele mesmo) — a ADR não fecha o payload do Filme-Servidor, só o do Gestor.
+
+**Contexto.** A primeira versão de `mv_filme_gestor` (schema v0.7/v0.8) usava **denylist**: `(payload - 'valor' - 'remuneracao' - 'base_calculo')` — subtrai três chaves financeiras conhecidas e deixa passar o resto do JSONB. O desenho é frágil por construção: **um campo sensível novo, se não estiver na lista de subtração, vaza por padrão** — o oposto do princípio de exposição mínima. A correção veio no schema v0.9 (sessão de reconciliação FOTO×EVENTO, 2026-07-05, handoff PBI rodada 1), motivada por duas dores conjuntas: (a) o Power BI não relaciona chave dentro de JSONB — toda chave que o painel usa como filtro/relação precisa ser coluna plana; (b) o filme-gestor precisava passar a ver **intercorrências** (o gestor tem que enxergar afastamento do subordinado — é o descasamento que "quebra a perna do RH" quando passa batido), e abrir esse subdomínio tornava a denylist ainda mais arriscada (afastamento carrega motivo administrativo, não diagnóstico — mas o próximo campo do payload pode não ser tão inofensivo). A correção resolveu os dois problemas com o mesmo movimento: trocar denylist por allowlist.
+
+**Opções consideradas.**
+1. **Manter denylist, ampliar a lista de subtração.** Rejeitada — não resolve a fragilidade estrutural (todo campo novo exige lembrar de adicioná-lo à lista negativa; esquecimento = vazamento silencioso); e não resolve o problema de relação do Power BI (o resto do JSONB continua opaco pro filtro).
+2. **Vitrine ODBC nova, sem mudar o payload.** Rejeitada — ataca só o sintoma de relação do PBI, não o de exposição; o payload cru continua subindo por baixo.
+3. **Allowlist de coluna nomeada via `->>`, com nome resolvido por dimensão relacionada (não hardcoded na frase).** Escolhida — inversão do padrão de risco: campo novo no payload **não aparece** até virar coluna explícita (fail-safe por omissão, não por lembrança); cada coluna já sai relacionável no PBI sem `->>` no cliente; o nome humano (dom_afastamento.nome_afastamento etc.) fica na dimensão, RH-editável, sem depender de reescrever a MV.
+
+**Resultado.** `mv_filme_gestor` (schema v0.9, endurecido em v0.10/v0.11): `SELECT id_evento, matricula_funcional, cod_tipo_evento, cod_sub_dominio, data_evento, (payload->>'cod_afastamento'), (payload->>'cod_motivo_deslig'), (payload->>'data_inicio')::date, (payload->>'data_fim')::date, (payload->>'data_desligamento')::date, intervalo_vigente, fonte` — sem a coluna `payload`. `WHERE cod_sub_dominio IN ('vinculos','intercorrencias','desempenho','jornada')` (intercorrências somada nesta mesma correção). `mv_filme_servidor` permanece com `payload` cheio, por ser o objeto do titular (fronteira já fixada na ADR-007 — Filme-Servidor × Filme-Gestor são objetos separados por *terem payload diferente*; esta ADR só formaliza a forma que o payload do Gestor toma). Regra geral daqui pra frente: **todo objeto de exposição que recorta payload gerencial/externo faz allowlist de coluna nomeada — denylist sobre JSONB não é padrão aceito no MDM.** Índices de apoio (`ix_mv_filme_gestor_afast`, `ix_mv_filme_gestor_deslig`) vêm de graça por a coluna já existir plana. Fecha a pendência de payload campo-a-campo do Filme-Gestor deixada em aberto na ADR-007 (nota "vazamento de domínio implícito por código SIAPE" — resolvida por desenho, não por auditoria caso a caso). Formalizada retroativamente (decisão já implementada em produção); decisão da mesa de engenharia (Tech Lead), 2026-07-05.
 
 ---
 
