@@ -262,7 +262,7 @@ def main():
         if div:
             sys.exit(1)
 
-    # Escrita (formato = envelope; schema v0.11)
+    # Escrita (formato = envelope; schema v0.13)
     manif = {}
     for rot, c in em.cargas.items():
         if not c["linhas"]:
@@ -275,13 +275,21 @@ def main():
     json.dump({"seed": seed, "n_vinculos": len(foto), "data_base": data_ref.isoformat(),
                "cargas": manif}, open(os.path.join(a.out, "cargas.json"), "w"),
               indent=2, ensure_ascii=False)
+    # As MVs de exposicao do schema v0.13 (Filme S/G + Calculadora folha/pss). O REFRESH
+    # do build inicial e PLANO (popula de uma vez); o caminho D-1/Airflow usa CONCURRENTLY
+    # (nao bloqueia o Power BI) — ver 3_schema_mdm.sql. mv_calculadora (unica) NAO existe
+    # mais: virou duas por fronteira de payload (ADR-011).
+    MVS_EXPOSICAO = ["mv_filme_servidor", "mv_filme_gestor",
+                     "mv_calculadora_folha", "mv_calculadora_pss"]
     with open(os.path.join(a.out, "load_eventos.sql"), "w", encoding="utf-8") as fh:
-        fh.write("-- carga da massa (schema v0.11): abre particao POR carga, depois COPY\n")
+        fh.write("-- carga da massa (schema v0.13): abre particao POR carga, COPY, e REFRESH das MVs\n")
         fh.write("\\set ON_ERROR_STOP on\n")
         for rot, m in manif.items():
             fh.write(f"SELECT fn_particao_carga('{m['id_carga']}');\n")
             fh.write(f"\\copy evento ({','.join(Emissor.COLS)}) FROM '{m['arquivo']}' CSV HEADER\n")
-        fh.write("-- depois: REFRESH MATERIALIZED VIEW CONCURRENTLY mv_filme_servidor; etc.\n")
+        fh.write("-- popula as MVs de exposicao (build inicial: REFRESH plano)\n")
+        for mv in MVS_EXPOSICAO:
+            fh.write(f"REFRESH MATERIALIZED VIEW {mv};\n")
 
     print(f"[ok] vinculos={len(foto)} eventos_base={manif.get('carga_base',{}).get('eventos',0)} "
           f"folha={n_folha} pss={n_pss} lixo={manif.get('carga_lixo',{}).get('eventos',0)} data_ref={data_ref}")
