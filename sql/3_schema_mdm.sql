@@ -1,10 +1,60 @@
 -- =============================================================================
 -- MDM-RH — Schema do golden record (FOTO + EVENTO)
--- versao: v0.8
+-- versao: v0.9
 -- ancora: 3_depara_foto_v0_3.md | 3_catalogo_eventos_v1.yaml (v1.1) | ADR-007 | ADR-008 | ADR-009
 -- =============================================================================
 -- HISTORICO DE VERSAO (versao dentro do arquivo; nome sem versao)
---   v0.8 (este) — RETRATACAO OPERACIONAL + MOTIVOS LOCAIS (ADR-008/ADR-009, sessao 2026-07-05):
+--   v0.9 (este) — PLANIFICACAO DE CHAVES DE PAYLOAD NAS MVs DE FILME + GESTOR VE
+--                 INTERCORRENCIAS (sessao 2026-07-05, handoff PBI rodada 1):
+--                 (1) O painel nao relaciona chave embutida em JSONB. Chaves que o
+--                     Power BI precisa como FILTRO (relacao com dimensao) sao
+--                     EXTRAIDAS do payload como COLUNA PLANA via ->> no SELECT da MV.
+--                     Filme-servidor e filme-gestor ganham: cod_afastamento,
+--                     data_inicio, data_fim (AFASTAMENTO/CESSAO); cod_motivo_deslig,
+--                     data_desligamento (DESLIGAMENTO). A COLUNA CARREGA O CODIGO;
+--                     a TRADUCAO (friendly name) vive na DIMENSAO (dom_afastamento,
+--                     dom_motivo_deslig), RH-editavel por UPDATE sem rebuild de MV.
+--                     PRINCIPIO: codigo nunca aparece cru pro humano — sempre ha
+--                     friendly name na dimensao relacionada. Vale p/ todo codigo.
+--                 (2) Filme-gestor passa a ver INTERCORRENCIAS (WHERE ganha o
+--                     sub-dominio). Decisao de negocio: o gestor tem que ver
+--                     afastamento do subordinado — descasamento nessa serie e
+--                     exatamente o que quebra a perna do RH quando passa batido.
+--                     cod_afastamento e CATEGORIA administrativa (S-2230), NAO
+--                     diagnostico clinico — o eSocial nao carrega CID. Sem vazamento.
+--                 (3) Filme-gestor DEIXA DE SUBIR payload cru. Antes: payload_gerencial
+--                     (payload menos 3 chaves financeiras, denylist). Agora: envelope
+--                     + SO as colunas planas nomeadas. O JSONB nunca sobe no gestor —
+--                     o motivo fino (se existisse) fica na base (evento), acessivel
+--                     so por GRANT direto (RH/Correg). Vazamento fechado por
+--                     CONSTRUCAO (nao ha payload na view), nao por denylist fragil.
+--                 (4) COALESCENCIA DE INTERVALO (ADR-008): afastamento/cessao fecham
+--                     por SEGUNDO registro imutavel (data_fim preenchida; data_carga
+--                     mais recente vence). A MV NAO colapsa a linha (Filme mostra a
+--                     SERIE — dois registros sao dois fatos de carga). Em vez disso,
+--                     coluna derivada `intervalo_vigente` (bool) marca, por janela
+--                     (matricula, cod_afastamento/cessao-chave, data_inicio), o
+--                     registro de data_carga mais recente. PBI filtra por ela p/
+--                     "estado do intervalo"; mostra tudo p/ "trajetoria". Tipos
+--                     ADITIVOS (folha, provimento etc.) sao sempre intervalo_vigente=
+--                     true (nao tem par a coalescer) — por isso DISTINCT ON global
+--                     seria ERRADO: quebraria folha suplementar (2 fechamentos da
+--                     mesma competencia que SOMAM, nao coalescem).
+--                 (5) CESSAO aparece 2x de proposito (evento CESSAO em vinculos +
+--                     AFASTAMENTO cod.40 em intercorrencias): o gestor ve os dois. E
+--                     o descasamento-espelho que o RH PRECISA ver. Colapso/filtro
+--                     disso e UX do PBI (se trepar linha demais), NAO corte no dado.
+--                     Reconciliacao S-2231 x S-2230 cod.40 segue aberta (catalogo).
+--                 (6) mv_calculadora NAO recebe as planas de afastamento/desligamento:
+--                     le so `compensacao` (FECHAMENTO_FOLHA). Afastamento nao e insumo
+--                     de folha; cod_afastamento nao esta no payload de compensacao.
+--                 (7) vw_mv_* seguem SELECT * (auto-espelham as colunas novas; vitrine
+--                     ODBC nao muda — a tese da v0.7 se confirma na pratica).
+--                 SHAPE DA MASSA: a cadeia EVENTO ainda nao tem massa gerada (massa
+--                 v0.3 e retrofit so da FOTO). Estas MVs compilam e ficam VAZIAS ate
+--                 a massa de evento existir — esperado. O DDL segue o shape do
+--                 catalogo_eventos_v1.yaml (fonte do payload), nao dado existente.
+--   v0.8 — RETRATACAO OPERACIONAL + MOTIVOS LOCAIS (ADR-008/ADR-009, sessao 2026-07-05):
 --                 (1) `evento` vira TABELA PARTICIONADA por LIST(id_carga). id_carga (uuid,
 --                     NOT NULL) entra no envelope; PK composta (id_carga, id_evento) —
 --                     exigencia do Postgres p/ PK em particionada. Uma particao por carga
@@ -412,9 +462,16 @@ FROM vw_foto
 GROUP BY cod_unidade_lotacao;
 
 -- ── Filme-Servidor ──────────────────────────────────────────────────────────
--- MV: replay da serie de eventos do proprio servidor. Payload CHEIO.
+-- MV: replay da serie de eventos do proprio servidor. Payload CHEIO (o servidor
+-- le o proprio dado — nada a esconder dele mesmo).
 -- RLS no Power BI recorta linha -> propria matricula (de-para AD<->matricula).
 -- REFRESH CONCURRENTLY exige indice unico (abaixo).
+-- v0.9: + colunas planas extraidas do payload (o Power BI relaciona coluna, nao
+--   chave-de-JSONB). Codigo na coluna; friendly name na dimensao (dom_afastamento,
+--   dom_motivo_deslig). payload CHEIO permanece (aqui e o proprio titular).
+-- v0.9: + intervalo_vigente — marca, por (matricula, cod_afastamento, data_inicio),
+--   o registro de data_carga mais recente (fechamento ADR-008 vence o aberto).
+--   NAO colapsa linha: o Filme mostra a SERIE. Tipos sem par de intervalo => true.
 CREATE MATERIALIZED VIEW mv_filme_servidor AS
 SELECT e.id_evento,
        e.matricula_funcional,
@@ -422,7 +479,20 @@ SELECT e.id_evento,
        e.cod_tipo_evento,
        te.cod_sub_dominio,
        e.data_evento,
-       e.payload,
+       -- planas (relacionaveis no PBI; nulas p/ tipos que nao tem o campo):
+       (e.payload->>'cod_afastamento')   AS cod_afastamento,     -- ref dom_afastamento
+       (e.payload->>'cod_motivo_deslig') AS cod_motivo_deslig,   -- ref dom_motivo_deslig
+       (e.payload->>'data_inicio')::date AS data_inicio,         -- AFASTAMENTO/CESSAO
+       (e.payload->>'data_fim')::date    AS data_fim,            -- nula = intervalo em aberto
+       (e.payload->>'data_desligamento')::date AS data_desligamento,
+       -- vigencia do intervalo (ADR-008: 2o registro fecha o 1o; data_carga vence):
+       (row_number() OVER (
+           PARTITION BY e.matricula_funcional,
+                        (e.payload->>'cod_afastamento'),
+                        (e.payload->>'data_inicio')
+           ORDER BY e.data_carga DESC
+       ) = 1) AS intervalo_vigente,
+       e.payload,          -- CHEIO — titular le o proprio dado
        e.fonte,
        e.grau_confianca
 FROM evento e
@@ -430,29 +500,51 @@ JOIN dom_tipo_evento te ON te.cod_tipo_evento = e.cod_tipo_evento;
 
 CREATE UNIQUE INDEX ux_mv_filme_servidor ON mv_filme_servidor(id_evento);
 CREATE INDEX ix_mv_filme_servidor_mat ON mv_filme_servidor(matricula_funcional, data_evento);
+CREATE INDEX ix_mv_filme_servidor_afast ON mv_filme_servidor(cod_afastamento);
+CREATE INDEX ix_mv_filme_servidor_deslig ON mv_filme_servidor(cod_motivo_deslig);
 
 -- ── Filme-Gestor ────────────────────────────────────────────────────────────
--- MV: payload REDUZIDO (gerencial). Objeto SEPARADO do Filme-Servidor porque o
--- payload difere (o corte gerencial e DDL, nao SELECT sobre base comum).
--- Recorte gerencial = subconjunto de tipos de evento com leitura de gestao
--- (provimento/cargo, cessao, desempenho/PGD). RLS -> sub-arvore do gestor
--- (arvore de cargos, insumo externo). O payload sai reduzido: expoe o envelope
--- e um recorte do JSONB, nao o payload cheio.
+-- MV: ENVELOPE + COLUNAS PLANAS, ZERO JSONB. Objeto SEPARADO do Filme-Servidor
+-- porque a fronteira difere: o gestor le dado do SUBORDINADO, nao o proprio.
+-- v0.9: payload cru SAIU. Antes subia payload_gerencial (denylist de 3 chaves
+--   financeiras) — fragil (campo novo passa por padrao). Agora sobe SO o que e
+--   nomeado como coluna plana. O motivo fino, se existisse, fica na base (evento),
+--   so por GRANT direto (RH/Correg). Sem payload na view => nada a vazar por
+--   construcao. Codigo na coluna; friendly name na dimensao.
+-- v0.9: WHERE ganha 'intercorrencias' — o gestor VE afastamento do subordinado.
+--   cod_afastamento e categoria administrativa (S-2230), nao diagnostico (o eSocial
+--   nao carrega CID). Descasamento nessa serie e o que quebra a perna do RH.
+-- Gestor = detentor de funcao >= 1.13 (massa v0.3 sec.7); recorte de linha (sub-arvore
+--   do gestor) e RLS/GRANT, insumo externo (arvore de cargos) — nao mora aqui.
+-- CESSAO aparece 2x (evento CESSAO + AFASTAMENTO cod.40): de proposito; e o espelho
+--   que o RH precisa ver. Colapso e UX do PBI, nao corte de dado.
 CREATE MATERIALIZED VIEW mv_filme_gestor AS
 SELECT e.id_evento,
        e.matricula_funcional,
        e.cod_tipo_evento,
        te.cod_sub_dominio,
        e.data_evento,
-       -- payload reduzido: so as chaves gerenciais (o recorte fino fecha no refinamento)
-       (e.payload - 'valor' - 'remuneracao' - 'base_calculo') AS payload_gerencial,
+       -- planas gerenciais (codigo; traducao na dimensao). SEM payload cru:
+       (e.payload->>'cod_afastamento')   AS cod_afastamento,     -- ref dom_afastamento
+       (e.payload->>'cod_motivo_deslig') AS cod_motivo_deslig,   -- ref dom_motivo_deslig
+       (e.payload->>'data_inicio')::date AS data_inicio,
+       (e.payload->>'data_fim')::date    AS data_fim,
+       (e.payload->>'data_desligamento')::date AS data_desligamento,
+       (row_number() OVER (
+           PARTITION BY e.matricula_funcional,
+                        (e.payload->>'cod_afastamento'),
+                        (e.payload->>'data_inicio')
+           ORDER BY e.data_carga DESC
+       ) = 1) AS intervalo_vigente,
        e.fonte
 FROM evento e
 JOIN dom_tipo_evento te ON te.cod_tipo_evento = e.cod_tipo_evento
-WHERE te.cod_sub_dominio IN ('vinculos','desempenho','jornada');
+WHERE te.cod_sub_dominio IN ('vinculos','intercorrencias','desempenho','jornada');
 
 CREATE UNIQUE INDEX ux_mv_filme_gestor ON mv_filme_gestor(id_evento);
 CREATE INDEX ix_mv_filme_gestor_mat ON mv_filme_gestor(matricula_funcional, data_evento);
+CREATE INDEX ix_mv_filme_gestor_afast ON mv_filme_gestor(cod_afastamento);
+CREATE INDEX ix_mv_filme_gestor_deslig ON mv_filme_gestor(cod_motivo_deslig);
 
 -- ── Calculadora do RH ───────────────────────────────────────────────────────
 -- MV: serie densa PSS/financeiro por matricula (servidor de 1992 = 30+ anos).

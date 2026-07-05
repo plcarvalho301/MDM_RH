@@ -124,13 +124,19 @@ def replay(eventos, data_ref, motivo_situacao):
                               date.fromisoformat(fim) if fim else date.max,
                               pl.get("cod_afastamento")))
 
-    if sit == "ATIVO" and any(a <= data_ref <= b for a, b, _ in intervalos["CESSAO"]):
-        sit = "CEDIDO"                # derivado, nunca evento; expira sozinho
-
     # afastamento vigente: 1o intervalo (por data_inicio) que contem a ref
     afast = next((cod for a, b, cod in sorted(intervalos["AFASTAMENTO"])
                   if a <= data_ref <= b), None)
-    if sit not in ("ATIVO", "CEDIDO"):
+
+    # situacao derivada (decisao #5, convencao da foto canonica): sobre base ATIVO,
+    # cessao vigente -> CEDIDO; afast 31 vigente -> DISPONIBILIDADE. Precedencia:
+    # cessao antes de disponibilidade.
+    if sit == "ATIVO":
+        if any(a <= data_ref <= b for a, b, _ in intervalos["CESSAO"]):
+            sit = "CEDIDO"           # derivado, nunca evento; expira sozinho
+        elif afast == "31":
+            sit = "DISPONIBILIDADE"
+    if sit not in ("ATIVO", "CEDIDO", "DISPONIBILIDADE"):
         afast, funcao = None, None    # mesmo corte da projecao do gerador
     return {"situacao_funcional": sit, "cod_afastamento_vigente": afast,
             "funcao_comissionada": funcao, "classe": classe, "padrao": padrao}
@@ -175,8 +181,8 @@ CAMPOS_EXTRA = ["cod_afastamento_vigente", "funcao_comissionada", "classe", "pad
 
 def main():
     ap = argparse.ArgumentParser(description="Replay ADR-008 contra o Postgres real")
-    ap.add_argument("--cargas", default="cargas.json")
-    ap.add_argument("--foto", default="foto_projetada.csv")
+    ap.add_argument("--cargas", default=os.path.join("gerador", "out", "cargas.json"))
+    ap.add_argument("--foto", default=os.path.join("gerador", "out", "servidor.csv"))
     ap.add_argument("--data-ref", default=None, help="default: data_base do cargas.json")
     ap.add_argument("--incluir-lixo", action="store_true",
                     help="replaya base+lixo (prova ADR-009: lixo passa limpo)")
