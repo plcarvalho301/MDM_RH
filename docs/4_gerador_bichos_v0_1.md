@@ -13,38 +13,48 @@ regras de modelo como dado.
 
 ---
 
-## 1. Arquitetura — dois geradores, uma população
+## 1. Arquitetura — ARQUÉTIPO-PRIMEIRO (o alinhamento com o designer)
 
 ```
-                        config.yaml (seed, volumetria, % — DONO da calibração)
-                             │
-   gen_massa.py  ───────────┤ FOTO canônica (fonte da população)
-   (Reino Animal, v0.2)      │
-                             ▼
-                    gerador/out/servidor.csv ──────────┐
-                             │                          │
-   gerador_eventos.py ◄──────┘ (consome a foto)         ▼
-   (foto-primeiro, v2)        │              loader/carrega_foto.py → tabela servidor
-                              ▼
-              gerador/out/eventos_*.csv → load_eventos.sql → event store (particionado)
-                              │
-                              ▼
-              schema v0.11 (MVs de Filme, colunas planas, rótulos) → Power BI (ODBC)
+      semente_trajetorias_v1.yaml          config.yaml (seed, volumetria)
+      (14 arquétipos do designer:           │
+       Camada A por PESO, Camada B          │        dom_* no banco
+       PLANTADA: Elias×2 Gerson×2           │        (regras de modelo — decisão #5)
+       Vicente×1, DG/Vice fixos)            │             │
+                  │                         │             │
+                  ▼                         ▼             ▼
+             ┌──────────────── trajetorias.py (MOTOR ÚNICO) ────────────────┐
+             │  rng por vínculo (seed:matricula:salt) → mesma vida nos 2 lados │
+             └──────────────┬───────────────────────────────┬───────────────┘
+                            │                               │
+   gen_massa.py (v0.3) ─────┘                               └───── gerador_eventos.py (v3)
+   ASSENTO (43 unidades, quadro FCE,                        re-RODA a mesma trajetória
+   órfãos) + estampa o arquétipo:                           e emite os EVENTOS dela
+   a VIDA (situação/classe/afastamento)                     (assert estado == foto)
+   DERIVA da trajetória                                              │
+        │                                                            │
+        ▼                                                            ▼
+   servidor.csv (+arquetipo, traj_salt) → carrega_foto      eventos_*.csv → load_eventos
+                            │                                        │
+                            └────────── replay (--valida + tests/) ──┘
+                                        = 0 divergências
 ```
 
-`gen_massa` é **soberano da população**: inventa as pessoas e o estado vigente.
-`gerador_eventos` **não inventa gente** — recebe cada linha da foto e emite a
-trajetória que **aterrissa** naquele estado (mesma matrícula/CPF). Foi a inversão
-do passo 4 (o v1 gerava um universo paralelo — a "cagada" já corrigida).
+O `situacao:`/`classe_peso:` demográfico do v0.2 **morreu** — era desalinhado do
+handoff do designer. A situação **emerge** dos arquétipos: Camada A estampada em
+arco EM CURSO (truncamento u), Camada B com arco completo (os casos-limite). A
+costura arquétipo×assento vive no motor: lotação/função finais = quadro (a última
+designação/REMOCAO corretiva aterrissa no assento); a vida = designer.
 
 ## 2. Inventário de arquivos
 
 | Arquivo | Papel |
 |---|---|
-| `gerador/gen_massa.py` | Gera a FOTO (grão vínculo). Estrutura hard-coded = MODELO (43 unidades, quadro FCE, escada de níveis); calibração no config. |
-| `gerador/config.yaml` | **Único lugar de calibração ajustável.** Dono de seed/data_ref/percentuais. |
-| `gerador/gerador_eventos.py` | Gera EVENTOS aterrissando na foto. Lê `servidor.csv` + seed do config. |
-| `gerador/semente_trajetorias_v1.yaml` | 14 arquétipos de trajetória (Gerson, Vicente, Bruno…). **Hoje inativo no fluxo** — insumo da fase 2 (casos-teste ricos). |
+| `gerador/trajetorias.py` | **O MOTOR ÚNICO** de trajetória: marcos da semente, truncamento de arco, costura arquétipo×assento, regras do banco. Usado pelos dois geradores. |
+| `gerador/gen_massa.py` (v0.3) | ASSENTO (43 unidades, quadro FCE, órfãos) + estampa arquétipos (Camada A por peso, B plantada). A vida deriva do motor. |
+| `gerador/config.yaml` | Calibração estrutural + `disponibilidade_pct`. Dono da seed. |
+| `gerador/gerador_eventos.py` (v3) | Re-roda a MESMA trajetória por vínculo (`arquetipo`+`traj_salt` do csv) e emite os eventos. Sem máquina de estados própria. |
+| `gerador/semente_trajetorias_v1.yaml` | 14 arquétipos do designer (v0.2 normalizado). **É o coração do fluxo** — pesos A, contagens B, marcos. |
 | `loader/carrega_foto.py` | Carrega `servidor.csv` → tabela `servidor` (UPSERT, rota de rejeito). |
 | `sql/3_schema_mdm.sql` (v0.11) | Schema do golden record + MVs de Filme/Gestor/Calculadora + views amigáveis (`vw_foto`, `vw_lente`, `vw_filme_*`) com rótulos resolvidos. |
 | `sql/seed_dominios.sql` (v0.2) | Domínios-base (FK-obrigatórios). |
@@ -55,23 +65,23 @@ do passo 4 (o v1 gerava um universo paralelo — a "cagada" já corrigida).
 ## 3. Pipeline canônico (o workflow, executável)
 
 ```bash
-# 1. FOTO canônica (+ seeds de unidade/função + pessoa/acessos)
-python gerador/gen_massa.py --config gerador/config.yaml --outdir gerador/out
-
-# 2. Banco: schema + TODOS os domínios PRIMEIRO (o gerador lê as regras deles)
+# 1. Banco: schema + domínios-base PRIMEIRO (os DOIS geradores leem as regras deles)
 psql -d mdm_rh -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;" \
-     -f sql/3_schema_mdm.sql -f sql/seed_dominios.sql \
-     -f gerador/out/seed_unidades_reino_animal.sql \
-     -f gerador/out/seed_funcao_reino_animal.sql
+     -f sql/3_schema_mdm.sql -f sql/seed_dominios.sql
 
-# 3. EVENTOS que aterrissam na foto (lê regras de modelo do banco; base+folha+lixo)
-python gerador/gerador_eventos.py --foto gerador/out/servidor.csv --out gerador/out --valida
+# 2. FOTO canônica arquétipo-primeiro (+ seeds de unidade/função + pessoa/acessos)
+python gerador/gen_massa.py --config gerador/config.yaml --outdir gerador/out
+psql -d mdm_rh -f gerador/out/seed_unidades_reino_animal.sql \
+               -f gerador/out/seed_funcao_reino_animal.sql
+
+# 3. EVENTOS: re-roda as MESMAS trajetórias e emite (base+folha+lixo)
+python gerador/gerador_eventos.py --valida
 
 # 4. Carrega FOTO e EVENTOS
 python loader/carrega_foto.py --csv gerador/out/servidor.csv
 ( cd gerador/out && psql -d mdm_rh -f load_eventos.sql )
 
-# 5. Materializa e valida
+# 5. Materializa e valida contra o banco real
 psql -d mdm_rh -c "REFRESH MATERIALIZED VIEW mv_filme_servidor;" # + gestor, calculadora
 python tests/valida_replay_intervalo.py     # meta: 0 divergências
 ```
@@ -102,9 +112,14 @@ Eixos ainda **não** cobertos (fase 2 — teste de conector):
 | `n_tocas_orfas` | Nº de unidades órfãs → **KR 2.1** (vw_orfao_estrutural). |
 | `afastado_vigente_pct` | % ATIVOs com afastamento → **KR 2.2** (vw_afastado_conta_exercicio). |
 | `nova_funcao_pct` | Emite DDMMYYYY → exercita `_data_iso` do loader (teste de conector). |
-| `pct_acumulacao` | CPF com 2 matrículas (estado independente por matrícula). |
-| `situacao` / `classe_peso` | Distribuição de situação e carreira. |
+| `pct_acumulacao` | CPF com 2 matrículas = arquétipo **Bruno** (estado independente por matrícula). |
+| `disponibilidade_pct` | dos elegíveis (ATIVO sem função, casa antiga) → DISPONIBILIDADE via afast 31 iniciado 1991-2000. |
 | `pct_cargo`, `tecnico_pode_fce`, `lotacao_dg_vice`, `sexo`, `geografia`, `idade*`, `regime` | Demografia e regras de cargo/função. |
+
+**Mortos no v0.3 (eram desalinhados do designer):** `situacao:`, `classe_peso:`,
+`afastado_vigente_pct:` — situação/carreira/afastamento **emergem** das trajetórias
+(pesos da Camada A + arcos truncados). A distribuição realizada sai no
+`relatorio_massa.md`.
 
 **Fora do config (MODELO, não parâmetro):** 43 unidades, quadro FCE, escada de níveis.
 
@@ -135,16 +150,21 @@ para o PBI; retratação ADR-009 com roteiro executável; **rótulos** em todas 
 dado** (v0.11) — gerador/replay leem `dom_afastamento`/`dom_motivo_deslig` do
 banco, zero regra de domínio hardcoded.
 
-**Limites declarados do v2 (bulk):**
-1. **Casos-teste ricos ausentes.** Todos os 1300 recebem trajetória MECÂNICA.
-   Desligados/inativos saem com motivo único genérico (07/38, calibrado em
-   `config.yaml:deslig_default`). Gerson (2 desligamentos), Vicente (anulação),
-   Bruno (2 vínculos), Célio (cedido+afastado) etc. **não** têm sua trajetória
-   característica — a foto snapshot não carrega a forma da trajetória.
-2. **Só formato interno** (sem emissores de ingestão real; sem destino=banco direto).
-3. **Descritor de evento (frase amigável) inexistente** — o de-para código→nome
-   já existe em toda superfície (rótulo), mas não há composição de frase
-   narrativa ("Afastado por X, de Y a Z").
+**Item A (casos ricos) ✅ FEITO (massa v0.3, arquétipo-primeiro):** todos os 1300
+carregam arquétipo do designer; os plantados têm suas cadeias-assinatura no banco
+(Gerson ×2 fuga+cassação, Vicente demissão+anulação, Elias disciplinar, Olga
+reversão, Bruno 39 pares, Célio cedido+afastado…). Situação EMERGE dos arcos
+(1100 ATIVO / 113 INATIVO / 40 DESLIGADO / 21 CEDIDO / 26 DISPONIBILIDADE ≈2%).
+
+**Limites declarados:**
+1. **Só formato interno** (sem emissores de ingestão real; sem destino=banco direto).
+2. **Descritor de evento (frase amigável) inexistente** — rótulos prontos em toda
+   superfície; a composição narrativa fica pro futuro (decisão do PM).
+3. **Pesos realizados ≠ pesos nominais** (levemente): a costura com o quadro FCE
+   (função-holders preferem moldes com função; cargo do assento restringe) desloca
+   a distribuição (~Wallace 33% vs 39.6% nominal). Relatório reporta o realizado.
+4. **Bifurcações do designer** (a reintegração "de ouro" do Elias etc.) seguem
+   fora — gerador de desvios é o incremento previsto.
 
 ---
 
@@ -152,11 +172,10 @@ banco, zero regra de domínio hardcoded.
 
 Cada item é independente; a dependência está anotada. Escolha por valor × esforço.
 
-**A. Casos-teste ricos (reconciliação fina).** Devolver a trajetória característica
-aos ~14 arquétipos nominais. **Depende de:** `gen_massa` marcar cada servidor com um
-arquétipo (coluna nova em `servidor.csv`; a foto snapshot não carrega isso). Depois
-`gera_eventos` roteia esses para a lógica rica da `semente_trajetorias_v1.yaml`.
-*Maior valor de teste (é onde moram as cadeias que quebram a perna do RH); esforço médio.*
+**A. Casos-teste ricos. ✅ FEITO (massa v0.3 — arquétipo-primeiro).** Foi além do
+plano: não só os ~14 nominais — TODA a massa nasce de arquétipo (Camada A por peso
+do designer, Camada B plantada), com o motor único `trajetorias.py` garantindo que
+foto e eventos são a mesma vida (rng por vínculo + `traj_salt`).
 
 **B. Regras de modelo viram dado (decisão #5). ✅ FEITO (schema v0.11).**
 `dom_afastamento.deriva_situacao`/`pausa_folha`; o gerador/replay leem do banco

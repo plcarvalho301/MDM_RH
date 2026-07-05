@@ -1,122 +1,32 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # =============================================================================
-# MDM-RH — GERADOR DE EVENTOS (foto-primeiro) — v2
-# Data: 2026-07-05
-# Ancoras: gen_massa.py (FOTO canonica) | 3_catalogo_eventos_v1.yaml (v1.1)
-#          3_schema_mdm.sql (v0.9) | ADR-008 | ADR-009
+# MDM-RH — GERADOR DE EVENTOS (Reino Animal) — v3 (arquetipo-primeiro)
+# Ancoras: trajetorias.py (motor unico) | semente_trajetorias_v1.yaml |
+#          gen_massa.py v0.3 | 3_catalogo_eventos_v1.yaml v1.1 | ADR-008/009
+# -----------------------------------------------------------------------------
+# v3: o gerador NAO tem maquina de estados propria — ele RE-RODA, por vinculo, a
+# MESMA trajetoria de arquetipo que o gen_massa estampou (rng identico via
+# seed:matricula:traj_salt) e emite os eventos dela. O estado projetado pelo
+# motor TEM que bater com a linha do servidor.csv (assert duro); o --valida
+# fecha o laco reconstruindo tudo por replay-de-intervalo (ADR-008).
 #
-# INVERSAO (v1 -> v2): o v1 era trajetoria-primeiro (inventava a propria gente e
-# PROJETAVA a foto). Errado: gerava um universo paralelo ao do gen_massa. O v2
-# CONSOME a FOTO canonica (gen_massa/out/servidor.csv) e emite eventos que
-# ATERRISSAM no estado fotografado de cada vinculo — mesma gente, mesma matricula.
+# Fluxo: gen_massa (foto+arquetipo) -> ESTE (eventos) -> loaders -> replay = foto.
 #
-# CONTRATO com a foto (o replay/MV re-deriva ISTO da serie de eventos):
-#   - situacao_funcional  (base PROVIMENTO/DESLIGAMENTO + intervalos vigentes)
-#   - cod_afastamento_vigente, funcao_comissionada, classe, padrao
-# A situacao NAO e evento: deriva de intervalos na data_ref (regras em REGRAS_SIT,
-# decisao #5 — convencao do gen_massa: CEDIDO<=>cessao+afast 40; DISPONIBILIDADE
-# <=>afast 31; ATIVO+cod=afastado vigente ATIVO).
+# CARGAS (ADR-009 exercitada desde o nascimento):
+#   carga_base  = trajetorias | carga_folha = FECHAMENTO_FOLHA (volume)
+#   carga_lixo  = fixture de RETRATACAO OPERACIONAL (30 duplicatas, --sem-lixo desliga)
 #
-# CONTRATO de payload (v0.9 le estas chaves via ->> nas MVs de Filme):
-#   AFASTAMENTO {cod_afastamento,data_inicio,data_fim}; CESSAO {orgao_cessionario,
-#   data_inicio,onus,data_fim}; DESLIGAMENTO {cod_motivo_deslig,data_desligamento};
-#   PROVIMENTO {cargo_inicial,regime_juridico}; PROGRESSAO {classe/padrao _origem/
-#   _destino,tipo_progressao}; ALTERACAO_FUNCAO {cod_funcao,nome_funcao,
-#   tipo_movimento}; FECHAMENTO_FOLHA {mes_competencia,mes_pagamento,tipo_fechamento,
-#   rubricas}.  NAO renomear chaves sem mexer nas MVs.
-#
-# ESCOPO v2 (decisao #2 = hibrido): TODOS os 1300 vinculos ganham a trajetoria
-# MECANICA que aterrissa no estado (bulk). Os ~14 casos-teste nominais (Gerson 2
-# desligamentos, Vicente anulacao, etc.) ganham trajetoria RICA na PROXIMA FASE —
-# a foto (snapshot) nao carrega a forma da trajetoria, entao exige marcador do
-# gen_massa; fica para o proximo incremento. Aqui o desligado/inativo recebe um
-# motivo plausivel unico.
-#
-# SAIDAS (--out DIR), formato = envelope do evento (schema v0.9). Destino ARQUIVO;
-#   --carrega-banco (decisao #6) fara o destino=banco via loader depois.
-#   eventos_<carga>.csv | cargas.json | load_eventos.sql
-# CARGAS: carga_base (trajetoria) | carga_folha (FECHAMENTO_FOLHA) | carga_lixo
-#   (fixture ADR-009, --sem-lixo desliga).
-#
-# Uso: python gerador_eventos.py --foto ../gerador/out/servidor.csv [--config config.yaml]
-# Dep: PyYAML (so p/ ler a seed do config)
+# Uso: python gerador_eventos.py [--foto gerador/out/servidor.csv] [--out gerador/out] --valida
 # =============================================================================
 import argparse, csv, json, os, random, sys, uuid
 from datetime import date, datetime, timedelta, timezone
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import trajetorias as traj
+from trajetorias import add_meses
+
 import yaml
-
-# ── Constantes estruturais (nao sao regra de dominio) ────────────────────────
-GRADE = [(c, p) for c in ["A", "B", "C", "ESPECIAL"] for p in ["I", "II", "III", "IV", "V"]]
-ORGAOS_CESSIONARIOS = ["Chancelaria dos Albatrozes", "Banco Central dos Castores",
-                       "Tribunal das Corujas", "Instituto dos Cervos"]
-
-# REGRAS DE MODELO NAO VIVEM AQUI (decisao #5): motivo->situacao, afast->situacao
-# derivada e afast->pausa_folha sao DADO, lidos do banco (dom_motivo_deslig,
-# dom_afastamento). Regra nova = UPDATE na dimensao, sem tocar este codigo.
-
-# ── Regras de modelo lidas do banco (fonte unica) ────────────────────────────
-def carrega_env(path=os.path.join(os.path.dirname(__file__), "..", "loader", ".env")):
-    env = {}
-    if os.path.exists(path):
-        for linha in open(path, encoding="utf-8"):
-            linha = linha.strip()
-            if linha and not linha.startswith("#") and "=" in linha:
-                k, v = linha.split("=", 1)
-                env[k.strip()] = v.strip()
-    for k in ("PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD"):
-        if os.environ.get(k):
-            env[k] = os.environ[k]
-    return env
-
-
-def carrega_regras(env):
-    """Le as regras de MODELO do banco (dom_motivo_deslig, dom_afastamento). O
-    gerador honra o golden record — nao carrega copia hardcoded (que dessincroniza
-    quando o RH edita a dimensao). Exige os dominios ja semeados (dominios ANTES
-    do gerador no pipeline)."""
-    import psycopg2
-    conn = psycopg2.connect(
-        host=env.get("PGHOST", "localhost"), port=env.get("PGPORT", "5432"),
-        dbname=env.get("PGDATABASE", "mdm_rh"), user=env.get("PGUSER", "postgres"),
-        password=env.get("PGPASSWORD", ""))
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT cod_motivo_deslig, situacao_resultante FROM dom_motivo_deslig")
-            motivo_sit = dict(cur.fetchall())
-            cur.execute("SELECT cod_afastamento, deriva_situacao, pausa_folha FROM dom_afastamento")
-            afast_deriva, afast_pausa = {}, set()
-            for cod, deriva, pausa in cur.fetchall():
-                if deriva:
-                    afast_deriva[cod] = deriva
-                if pausa:
-                    afast_pausa.add(cod)
-    finally:
-        conn.close()
-    if not motivo_sit or not afast_deriva:
-        sys.exit("dominios vazios no banco — rode schema + seed_dominios ANTES do gerador.")
-    return {"motivo_sit": motivo_sit, "afast_deriva": afast_deriva, "afast_pausa": afast_pausa}
-
-
-# ── Helpers de data ──────────────────────────────────────────────────────────
-def add_meses(d, m):
-    from calendar import monthrange
-    y, mo = d.year + (d.month - 1 + m) // 12, (d.month - 1 + m) % 12 + 1
-    return date(y, mo, min(d.day, monthrange(y, mo)[1]))
-
-
-def d28(d):  # normaliza p/ <= dia 28 (mesma disciplina do gen_massa)
-    return date(d.year, d.month, min(d.day, 28))
-
-
-def parse_data(v):
-    """ISO passa direto; a API real (e o gen_massa) manda DDMMYYYY — mesmo
-    tratamento do _data_iso do loader."""
-    import re
-    if re.fullmatch(r"[0-9]{8}", v):
-        return date(int(v[4:]), int(v[2:4]), int(v[:2]))
-    return date.fromisoformat(v)
 
 
 # ── Emissao ──────────────────────────────────────────────────────────────────
@@ -145,109 +55,11 @@ class Emissor:
                             (self.t0 + timedelta(hours=atraso_h)).isoformat()])
 
 
-# ── Aterrissagem: eventos de UM vinculo que terminam no estado fotografado ───
-def gera_eventos_vinculo(rng, em, row, data_ref, frac_dois, regras, deslig_default):
-    """Recebe uma linha da FOTO canonica e emite a serie de eventos que aterrissa
-    nela. Retorna o insumo da folha (ingresso, fim_folha, pausas). Regras de modelo
-    (motivo->situacao, afast->pausa_folha) vem do banco via `regras`."""
-    mat, cpf = row["matricula_funcional"], row["cpf"]
-    sit_alvo = row["situacao_funcional"]
-    ingresso = d28(date.fromisoformat(row["data_exercicio_no_orgao"]))
-    regime = row.get("regime_juridico") or "RJU"
-
-    # 1) PROVIMENTO no ingresso
-    em.emite("carga_base", mat, cpf, "PROVIMENTO", ingresso,
-             {"cargo_inicial": row["cargo"], "regime_juridico": regime})
-
-    # 2) DESLIGAMENTO (se aplicavel) fixa a fronteira temporal da carreira
-    fim_folha = None
-    encerrado_em = None
-    if sit_alvo in ("DESLIGADO", "INATIVO"):
-        # desligamento entre o ingresso e a data_ref (nunca no futuro)
-        span = max((data_ref - ingresso).days, 30)
-        dt_des = d28(ingresso + timedelta(days=rng.randint(span // 2, span)))
-        dt_des = min(dt_des, data_ref)
-        motivo = deslig_default[sit_alvo]
-        em.emite("carga_base", mat, cpf, "DESLIGAMENTO", dt_des,
-                 {"cod_motivo_deslig": motivo, "data_desligamento": dt_des.isoformat()})
-        encerrado_em = dt_des
-        if sit_alvo == "DESLIGADO":
-            fim_folha = dt_des            # DESLIGADO para a folha; INATIVO segue (proventos)
-
-    limite = encerrado_em or data_ref
-
-    # 3) PROGRESSAO: da grade (A,I) ate (classe, padrao) da foto. A ULTIMA
-    #    progressao aterrissa no destino — datas so precisam caber antes do limite.
-    alvo = (row["classe"] or "A", row["padrao"] or "I")
-    n = GRADE.index(alvo) if alvo in GRADE else 0
-    if n > 0:
-        janela = max((limite - ingresso).days - 30, n)   # dias uteis p/ espalhar
-        passo = max(janela // (n + 1), 1)
-        d = ingresso
-        for g in range(n):
-            d = d28(min(d + timedelta(days=passo + rng.randint(-15, 15)), limite))
-            co, po = GRADE[g]
-            cd, pd = GRADE[g + 1]
-            em.emite("carga_base", mat, cpf, "PROGRESSAO", date(d.year, d.month, 1),
-                     {"classe_origem": co, "padrao_origem": po,
-                      "classe_destino": cd, "padrao_destino": pd,
-                      "tipo_progressao": "progressao"})
-
-    # 4) ALTERACAO_FUNCAO: aterrissa na funcao_comissionada vigente (se houver e
-    #    ativo/cedido). A ULTIMA designacao vence no replay.
-    fun = row.get("funcao_comissionada") or None
-    if fun and sit_alvo in ("ATIVO", "CEDIDO"):
-        di = row.get("data_ingresso_nova_funcao")
-        d_fun = d28(parse_data(di)) if di else d28(
-            ingresso + timedelta(days=max((limite - ingresso).days // 2, 1)))
-        d_fun = max(min(d_fun, limite), ingresso)
-        em.emite("carga_base", mat, cpf, "ALTERACAO_FUNCAO", d_fun,
-                 {"cod_funcao": fun, "nome_funcao": fun, "tipo_movimento": "designacao"})
-
-    # 5) Intercorrencias vigentes que ATERRISSAM situacao + cod_afastamento_vigente
-    pausas = []
-    cod_af = (row.get("cod_afastamento_vigente") or "").strip()
-
-    def emite_afast(cod, ini, fim):
-        """AFASTAMENTO vigente: aberto (data_fim=None) ou par aberto+fechamento
-        (coalescencia ADR-008; fim > data_ref mantem vigente)."""
-        chave = {"cod_afastamento": cod, "data_inicio": ini.isoformat()}
-        if rng.random() < frac_dois:               # par: exercita intervalo_vigente (v0.9)
-            em.emite("carga_base", mat, cpf, "AFASTAMENTO", ini, dict(chave, data_fim=None))
-            em.emite("carga_base", mat, cpf, "AFASTAMENTO", ini,
-                     dict(chave, data_fim=fim.isoformat()), atraso_h=6)
-        else:
-            em.emite("carga_base", mat, cpf, "AFASTAMENTO", ini, dict(chave, data_fim=None))
-        if cod in regras["afast_pausa"]:
-            pausas.append((ini, fim))
-
-    if sit_alvo in ("ATIVO", "CEDIDO", "DISPONIBILIDADE") and cod_af:
-        ini_af = d28(add_meses(data_ref, -rng.randint(1, 18)))
-        ini_af = max(ini_af, ingresso)
-        fim_af = d28(add_meses(data_ref, rng.randint(2, 24)))   # ainda vigente na ref
-        if sit_alvo == "CEDIDO":
-            # CESSAO (deriva CEDIDO) + AFASTAMENTO 40 espelho (v0.9: "aparece 2x")
-            ini_ces = ini_af
-            ch = {"orgao_cessionario": rng.choice(ORGAOS_CESSIONARIOS),
-                  "data_inicio": ini_ces.isoformat(), "onus": "com_onus"}
-            if rng.random() < frac_dois:
-                em.emite("carga_base", mat, cpf, "CESSAO", ini_ces, dict(ch, data_fim=None))
-                em.emite("carga_base", mat, cpf, "CESSAO", ini_ces,
-                         dict(ch, data_fim=fim_af.isoformat()), atraso_h=6)
-            else:
-                em.emite("carga_base", mat, cpf, "CESSAO", ini_ces, dict(ch, data_fim=None))
-            emite_afast(cod_af, ini_af, fim_af)     # cod_af da foto = 40 (CEDIDO)
-        else:
-            emite_afast(cod_af, ini_af, fim_af)     # ATIVO+cod ou DISPONIBILIDADE (31)
-
-    return {"ingresso": ingresso, "fim_folha": fim_folha, "pausas": pausas}
-
-
 # ── Folha mensal (carga propria — destacavel, ADR-009) ───────────────────────
 def gera_folha(rng, em, mat, cpf, fol, data_ref):
     n = 0
     d = date(fol["ingresso"].year, fol["ingresso"].month, 1)
-    fim = fol["fim_folha"] or data_ref
+    fim = fol["fim_folha"] or data_ref          # DESLIGADO para; INATIVO segue (proventos)
     while d <= fim:
         if not any(p0 <= d <= p1 for p0, p1 in fol["pausas"]):
             comp = f"{d.year}{d.month:02d}"
@@ -261,18 +73,16 @@ def gera_folha(rng, em, mat, cpf, fol, data_ref):
     return n
 
 
-# ── Replay de validacao (ADR-008; 5 situacoes) ───────────────────────────────
+# ── Replay de validacao (ADR-008; reconstroi TUDO so dos eventos) ────────────
 def replay(eventos, data_ref, regras):
-    """Reconstroi o estado por INTERVALO + coalescencia. Retorna o dict que a foto
-    canonica declara (situacao/afast/funcao/classe/padrao). Mapas de derivacao
-    (motivo->situacao, afast->situacao derivada) vem do banco via `regras`."""
     evs = sorted(eventos, key=lambda e: (e["data_evento"], e["data_carga"], e["id_evento"]))
     sit = None
     aberto = {}                       # (tipo, data_inicio) -> payload (coalescencia)
-    funcao, classe, padrao = None, "A", "I"
+    funcao = None
+    grau = 0
     for e in evs:
         t = e["cod_tipo_evento"]
-        pl = e["payload"] if isinstance(e["payload"], dict) else json.loads(e["payload"])
+        pl = json.loads(e["payload"])
         if t == "PROVIMENTO":
             sit = "ATIVO"
         elif t == "DESLIGAMENTO":
@@ -284,35 +94,45 @@ def replay(eventos, data_ref, regras):
         elif t == "ALTERACAO_FUNCAO":
             funcao = pl.get("cod_funcao") if pl.get("tipo_movimento") == "designacao" else None
         elif t == "PROGRESSAO":
-            classe, padrao = pl.get("classe_destino") or classe, pl.get("padrao_destino") or padrao
+            alvo = (pl.get("classe_destino"), pl.get("padrao_destino"))
+            if alvo in traj.GRADE:
+                grau = traj.GRADE.index(alvo)
 
     ic = {"CESSAO": [], "AFASTAMENTO": []}
     for (t, ini), pl in aberto.items():
         fim = pl.get("data_fim")
-        ic[t].append((date.fromisoformat(ini), date.fromisoformat(fim) if fim else date.max,
+        ic[t].append((date.fromisoformat(ini),
+                      date.fromisoformat(fim) if fim else date.max,
                       pl.get("cod_afastamento")))
     cedido = any(a <= data_ref <= b for a, b, _ in ic["CESSAO"])
-    af_vig = next((cod for a, b, cod in sorted(ic["AFASTAMENTO"]) if a <= data_ref <= b), None)
+    af_vig = next((c for a, b, c in sorted(ic["AFASTAMENTO"], key=lambda x: (x[0], x[1], x[2] or ""))
+                   if a <= data_ref <= b), None)
     if sit == "ATIVO":
         if cedido:
             sit = "CEDIDO"
-        elif af_vig and regras["afast_deriva"].get(af_vig):
-            sit = regras["afast_deriva"][af_vig]      # ex.: 31 -> DISPONIBILIDADE
+        elif af_vig and regras["afast_deriva"].get(af_vig) == "DISPONIBILIDADE":
+            sit = "DISPONIBILIDADE"
+    if sit not in ("ATIVO", "CEDIDO"):
+        funcao = None
     if sit not in ("ATIVO", "CEDIDO", "DISPONIBILIDADE"):
-        af_vig, funcao = None, None
+        af_vig = None
+    classe, padrao = traj.GRADE[grau]
     return {"situacao_funcional": sit, "cod_afastamento_vigente": af_vig,
             "funcao_comissionada": funcao, "classe": classe, "padrao": padrao}
 
 
 # ── Main ─────────────────────────────────────────────────────────────────────
+CAMPOS = ["situacao_funcional", "cod_afastamento_vigente", "funcao_comissionada",
+          "classe", "padrao"]
+
+
 def main():
-    aqui = os.path.dirname(__file__)
-    ap = argparse.ArgumentParser(description="Gerador de eventos foto-primeiro (v2)")
-    ap.add_argument("--foto", default=os.path.join(aqui, "out", "servidor.csv"),
-                    help="FOTO canonica (saida do gen_massa)")
-    ap.add_argument("--config", default=os.path.join(aqui, "config.yaml"),
-                    help="dono da seed (decisao #4)")
-    ap.add_argument("--out", default="saida")
+    aqui = os.path.dirname(os.path.abspath(__file__))
+    ap = argparse.ArgumentParser(description="Gerador de eventos v3 (arquetipo-primeiro)")
+    ap.add_argument("--foto", default=os.path.join(aqui, "out", "servidor.csv"))
+    ap.add_argument("--config", default=os.path.join(aqui, "config.yaml"))
+    ap.add_argument("--semente", default=os.path.join(aqui, "semente_trajetorias_v1.yaml"))
+    ap.add_argument("--out", default=os.path.join(aqui, "out"))
     ap.add_argument("--sem-folha", action="store_true")
     ap.add_argument("--sem-lixo", action="store_true")
     ap.add_argument("--valida", action="store_true")
@@ -321,34 +141,63 @@ def main():
     os.makedirs(a.out, exist_ok=True)
     cfg = yaml.safe_load(open(a.config, encoding="utf-8"))
     seed = cfg["seed"]
-    frac_dois = 0.25            # fracao de intercorrencias como par (ADR-008/v0.9)
-    rng = random.Random(seed)
-    regras = carrega_regras(carrega_env())      # regras de modelo do banco (fonte unica)
-    deslig_default = cfg["deslig_default"]       # calibracao (config, nao dominio)
+    semente = traj.carrega_semente(a.semente)
+    regras = traj.carrega_regras()
+    par = {**semente["parametros_default"],
+           "disponibilidade_pct": cfg.get("disponibilidade_pct", 0)}
 
     with open(a.foto, encoding="utf-8", newline="") as f:
         foto = list(csv.DictReader(f))
-    if not foto:
-        sys.exit(f"FOTO vazia: {a.foto} — rode gen_massa antes.")
-    data_ref = date.fromisoformat(foto[0]["data_referencia"])   # decisao #1: foto e dona
+    if not foto or "arquetipo" not in foto[0]:
+        sys.exit(f"FOTO sem coluna arquetipo: {a.foto} — rode gen_massa v0.3 antes.")
+    data_ref = date.fromisoformat(foto[0]["data_referencia"])
 
-    em = Emissor(rng)
+    # ingresso do vinculo #A por cpf (o #B do Bruno nasce depois dele)
+    ingresso_a = {r["cpf"]: date.fromisoformat(r["data_exercicio_no_orgao"])
+                  for r in foto if r["arquetipo"].endswith("#A")}
+
+    em = Emissor(random.Random(seed))
     for rot in ("carga_base", "carga_folha", "carga_lixo"):
         em.carga(rot)
 
-    folhas = []
+    folhas, divergencias = [], 0
     for row in foto:
-        fol = gera_eventos_vinculo(rng, em, row, data_ref, frac_dois, regras, deslig_default)
-        folhas.append((row["matricula_funcional"], row["cpf"], fol))
+        mat, cpf, rotulo = row["matricula_funcional"], row["cpf"], row["arquetipo"]
+        arq, spec = traj.resolve(semente, rotulo)
+        alvo = {"lotacao_final": int(row["cod_unidade_lotacao"]),
+                "funcao_final": row["funcao_comissionada"] or None,
+                "forca_ativo": bool(row["funcao_comissionada"]),
+                "cargo": row["cargo"], "unidades": traj.UNIVERSO_UNIDADES,
+                "ingresso_base": ingresso_a.get(cpf) if rotulo.endswith("#B") else None}
+        rv = traj.rng_vinculo(seed, mat, int(row.get("traj_salt") or 0))
+        tr = traj.gera_trajetoria(rv, arq, spec, data_ref, regras, par, alvo)
+        if tr is None:
+            sys.exit(f"trajetoria nao reproduziu (mat {mat}, {rotulo}) — foto e eventos dessincronizados?")
+        # o estado do motor TEM que ser o estado da foto (mesmo rng => mesma vida)
+        est = tr["estado"]
+        for c in CAMPOS:
+            esperado = row[c] or None
+            obtido = est[c]
+            if obtido != esperado:
+                divergencias += 1
+                if divergencias <= 8:
+                    print(f"  DESSINCRONIA {mat} ({rotulo}) [{c}]: motor={obtido!r} foto={esperado!r}")
+        for tipo, d, pl, atr in tr["eventos"]:
+            em.emite("carga_base", mat, cpf, tipo, d, pl, atraso_h=atr)
+        folhas.append((mat, cpf, tr["folha"]))
+    if divergencias:
+        sys.exit(f"[FALHA] {divergencias} dessincronias motor x foto — nada foi escrito.")
 
     n_folha = 0
     if not a.sem_folha:
+        rng_f = random.Random(f"{seed}:folha")
         for mat, cpf, fol in folhas:
-            n_folha += gera_folha(rng, em, mat, cpf, fol, data_ref)
+            n_folha += gera_folha(rng_f, em, mat, cpf, fol, data_ref)
 
-    # Carga-lixo: fixture de RETRATACAO OPERACIONAL (defeito material deliberado).
+    # Carga-lixo: fixture de RETRATACAO OPERACIONAL (defeito material deliberado)
     if not a.sem_lixo:
-        amostra = rng.sample(em.cargas["carga_base"]["linhas"], k=min(30, len(foto)))
+        rng_l = random.Random(f"{seed}:lixo")
+        amostra = rng_l.sample(em.cargas["carga_base"]["linhas"], k=min(30, len(foto)))
         for l in amostra:
             pl = json.loads(l[6])
             if "data_desligamento" in pl:
@@ -356,28 +205,25 @@ def main():
             em.emite("carga_lixo", l[2], l[3], l[4], date.fromisoformat(l[5]), pl,
                      atraso_h=48, fonte="CARGA_APOSENTADOS_DEFEITUOSA", grau="medio")
 
-    # Validacao: replay-de-intervalo vs FOTO canonica (nucleo + estendido)
+    # Validacao: replay-de-intervalo (SO dos eventos) vs FOTO — o juiz final
     if a.valida:
         por_mat = {}
         for l in em.cargas["carga_base"]["linhas"]:
             por_mat.setdefault(l[2], []).append(dict(zip(Emissor.COLS, l)))
-        campos = ["situacao_funcional", "cod_afastamento_vigente", "funcao_comissionada",
-                  "classe", "padrao"]
         div = 0
         for row in foto:
             r = replay(por_mat[row["matricula_funcional"]], data_ref, regras)
-            for c in campos:
-                esp = row[c] or None
-                if r[c] != esp:
+            for c in CAMPOS:
+                if r[c] != (row[c] or None):
                     div += 1
                     if div <= 8:
-                        print(f"  DIVERGE {row['matricula_funcional']} [{c}]: "
-                              f"replay={r[c]!r} foto={esp!r} (sit={row['situacao_funcional']})")
+                        print(f"  DIVERGE {row['matricula_funcional']} ({row['arquetipo']}) "
+                              f"[{c}]: replay={r[c]!r} foto={row[c] or None!r}")
         print(f"[valida] replay-de-intervalo vs FOTO canonica: {len(foto)} vinculos, {div} divergencias")
         if div:
             sys.exit(1)
 
-    # Escrita (formato = envelope; schema v0.9)
+    # Escrita (formato = envelope; schema v0.11)
     manif = {}
     for rot, c in em.cargas.items():
         if not c["linhas"]:
@@ -391,7 +237,7 @@ def main():
                "cargas": manif}, open(os.path.join(a.out, "cargas.json"), "w"),
               indent=2, ensure_ascii=False)
     with open(os.path.join(a.out, "load_eventos.sql"), "w", encoding="utf-8") as fh:
-        fh.write("-- carga da massa (schema v0.9): abre particao POR carga, depois COPY\n")
+        fh.write("-- carga da massa (schema v0.11): abre particao POR carga, depois COPY\n")
         fh.write("\\set ON_ERROR_STOP on\n")
         for rot, m in manif.items():
             fh.write(f"SELECT fn_particao_carga('{m['id_carga']}');\n")

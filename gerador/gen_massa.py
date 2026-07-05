@@ -2,8 +2,20 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
 # MDM-RH — Gerador de massa ficticia (FOTO) — Reino Animal
-# versao: v0.2 (retrofit — substitui o gerador generico v0.1)
-# ancora: 3_massa_reino_animal_v0_3.md | 3_schema_mdm.sql (v0.6) | sql/seed_dominios.sql
+# versao: v0.3 (ARQUETIPO-PRIMEIRO — a vida vem do designer, o assento do quadro)
+# ancora: 3_massa_reino_animal_v0_3.md | semente_trajetorias_v1.yaml (14 arquetipos
+#         do designer v0.2) | trajetorias.py (motor unico) | 3_schema_mdm.sql (v0.11)
+# -----------------------------------------------------------------------------
+# v0.3: o sorteio DEMOGRAFICO de situacao/classe/afastamento (v0.2) MORREU — era
+#   desalinhado do handoff do designer. Agora cada servidor nasce de um ARQUETIPO:
+#   Camada A estampada por PESO (Wallace 39.6%...), Camada B PLANTADA por contagem
+#   (Elias x2, Gerson x2, Vicente x1 — os casos-limite que nao escalam), DG/Vice
+#   fixos. A trajetoria do arquetipo (motor trajetorias.py, rng por vinculo) DERIVA
+#   situacao/classe/padrao/afastamento/ingresso; o QUADRO estrutural (43 unidades,
+#   FCE trilha-1) continua dono de lotacao/funcao/cargo — costura no motor.
+#   servidor.csv ganha `arquetipo` + `traj_salt` (o gerador de eventos re-roda a
+#   MESMA trajetoria e emite os eventos que aterrissam neste estado).
+#   REQUER banco com dominios semeados (regras de modelo vem de la — decisao #5).
 # -----------------------------------------------------------------------------
 # Le config.yaml e gera massa de FOTO (tabela servidor). NAO gera eventos.
 # Deterministico por seed (config; obrigatorio — invariante 5 da spec).
@@ -36,6 +48,9 @@ try:
     import yaml
 except ImportError:
     sys.exit("Falta PyYAML: pip install pyyaml --break-system-packages")
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import trajetorias as traj   # motor unico de trajetoria (arquetipos do designer)
 
 # ============================================================================
 # 1. ESTRUTURA — 43 unidades (spec Secao 2/3). cod 100001..100043
@@ -225,6 +240,12 @@ def gerar(cfg, outdir):
     else:
         d_ref = dt.date.fromisoformat(str(cfg["data_referencia"]))
 
+    # v0.3: arquetipos (semente do designer) + regras de modelo (banco, decisao #5)
+    semente = traj.carrega_semente()
+    regras = traj.carrega_regras()
+    par = {**semente["parametros_default"],
+           "disponibilidade_pct": cfg.get("disponibilidade_pct", 0)}
+
     unidades = {nome: {"cod": COD_BASE + i, "grupo": grupo} for i, (nome, grupo) in enumerate(UNIDADES)}
     lotaveis = [n for n, u in unidades.items() if u["grupo"] != "estrutura"]
     tocas = [n for n in lotaveis if unidades[n]["grupo"].startswith("toca")]
@@ -339,37 +360,9 @@ def gerar(cfg, outdir):
         return m
 
     def vinculo(p, unidade, cargo, funcao):
-        idade = (d_ref - p["nasc"]).days // 365
-        idade_ing = min(rng.randint(cfg["idade_ingresso"]["min"], cfg["idade_ingresso"]["max"]), idade)
-        d_ing = dt.date(p["nasc"].year + idade_ing, rng.randint(1, 12), rng.randint(1, 28))
-        if d_ing > d_ref - dt.timedelta(days=30):
-            d_ing = d_ref - dt.timedelta(days=rng.randint(30, 365))
-        anos_casa = (d_ref - d_ing).days / 365.25
-
-        # classe coerente com tempo de casa (rebaixa se faltar lastro)
-        classe = weighted(cfg["classe_peso"], rng)
-        while ANOS_MIN_CLASSE[classe] > anos_casa and classe != "A":
-            classe = CLASSES_ORD[CLASSES_ORD.index(classe) - 1]
-        excedente = anos_casa - ANOS_MIN_CLASSE[classe]
-        padrao = PADROES[rng.randint(0, min(4, max(0, int(excedente / 1.2))))]
-
-        # situacao: quem tem funcao e ATIVO; demais sorteiam (com lastro p/ INATIVO)
-        if funcao:
-            situacao = "ATIVO"
-        else:
-            situacao = weighted(cfg["situacao"], rng)
-            if situacao == "INATIVO" and (idade < 50 or anos_casa < 10):
-                situacao = "ATIVO"
-
-        # afastamento vigente coerente com a situacao
-        afast = ""
-        if situacao == "CEDIDO":
-            afast = "40"
-        elif situacao == "DISPONIBILIDADE":
-            afast = "31"
-        elif situacao == "ATIVO" and rng.random() < cfg["afastado_vigente_pct"]:
-            afast = rng.choice(AFASTAMENTOS_SORTEAVEIS)
-
+        """v0.3: cria o ASSENTO (identidade + lotacao + funcao + cargo). A VIDA
+        (situacao/classe/padrao/afastamento/ingresso) vem do ARQUETIPO, estampada
+        depois por estampa_arquetipo() — o sorteio demografico do v0.2 morreu."""
         # exercicio: igual a lotacao, salvo % que exerce em outra unidade valida
         exerc = unidades[unidade]["cod"]
         if rng.random() < cfg["exercicio_difere_lotacao_pct"]:
@@ -384,15 +377,17 @@ def gerar(cfg, outdir):
         return {
             "matricula_funcional": nova_matricula(), "cpf": p["cpf"], "nome": p["nome"],
             "data_nascimento": p["nasc"].isoformat(), "cargo": cargo,
-            "classe": classe, "padrao": padrao,
+            "classe": "A", "padrao": "I",              # placeholder — arquetipo estampa
             "sigla_nivel_cargo": "NS", "funcao_comissionada": funcao or "",
             "nova_funcao": nova_f, "data_ingresso_nova_funcao": d_nova,
             "cod_unidade_lotacao": unidades[unidade]["cod"], "cod_unidade_exercicio": exerc,
             "origem_unidade": "SIAPE" if unidade in orfas else "SIORG",
-            "situacao_funcional": situacao, "regime_juridico": weighted(cfg["regime"], rng),
-            "data_exercicio_no_orgao": d_ing.isoformat(),
-            "cod_afastamento_vigente": afast, "data_referencia": d_ref.isoformat(),
+            "situacao_funcional": "ATIVO",             # placeholder — arquetipo estampa
+            "regime_juridico": weighted(cfg["regime"], rng),
+            "data_exercicio_no_orgao": d_ref.isoformat(),   # placeholder
+            "cod_afastamento_vigente": "", "data_referencia": d_ref.isoformat(),
             "cod_mecanica": "ingestao",
+            "arquetipo": "", "traj_salt": "0",
         }
 
     # topo (hard-coded, spec Secao 1) — lotacao: cfg lotacao_dg_vice
@@ -433,19 +428,114 @@ def gerar(cfg, outdir):
         elif n_tecnico_ja < n_tecnico_alvo and s["cod_unidade_lotacao"] in cods_tec_ok:
             s["cargo"] = "Técnico"; n_tecnico_ja += 1
 
-    # ---- acumulacao licita: 2a matricula p/ n_extra pessoas ------------------
+    # =========================================================================
+    # v0.3 — ESTAMPAGEM DE ARQUETIPOS (a vida vem do designer; o assento ficou)
+    # =========================================================================
+    CARGO_SEMENTE = {"Técnico": "Tecnico", "Analista": "Analista", "Agente": "Agente"}
+    nasc_fixado = {}   # cpf -> date (Bruno: o nasc do 1o vinculo vale p/ pessoa)
+
+    def estampa_arquetipo(s, rotulo, ingresso_base=None):
+        """Roda o motor de trajetoria e grava o ESTADO do arquetipo no servidor.
+        O salt garante reproducao identica no gerador de eventos."""
+        arq, spec = traj.resolve(semente, rotulo)
+        alvo_t = {"lotacao_final": s["cod_unidade_lotacao"],
+                  "funcao_final": s["funcao_comissionada"] or None,
+                  "forca_ativo": bool(s["funcao_comissionada"]),
+                  "cargo": s["cargo"], "unidades": traj.UNIVERSO_UNIDADES,
+                  "ingresso_base": ingresso_base}
+        for salt in range(16):
+            rv = traj.rng_vinculo(cfg["seed"], s["matricula_funcional"], salt)
+            tr = traj.gera_trajetoria(rv, arq, spec, d_ref, regras, par, alvo_t)
+            if tr:
+                break
+        else:
+            sys.exit(f"arquetipo '{rotulo}' nao coube em 16 saltos (mat {s['matricula_funcional']})")
+        est = tr["estado"]
+        s["arquetipo"], s["traj_salt"] = rotulo, str(salt)
+        s["classe"], s["padrao"] = est["classe"], est["padrao"]
+        s["situacao_funcional"] = est["situacao_funcional"]
+        s["cod_afastamento_vigente"] = est["cod_afastamento_vigente"] or ""
+        s["data_exercicio_no_orgao"] = est["ingresso"].isoformat()
+        if s["situacao_funcional"] != "ATIVO":       # nova_funcao so faz sentido ATIVO
+            s["nova_funcao"] = ""; s["data_ingresso_nova_funcao"] = ""
+        # nasc coerente com o ingresso (INATIVO exige >=50 na aposentadoria);
+        # draws pos-motor no rng do vinculo: nao afetam a reproducao dos eventos
+        if s["cpf"] in nasc_fixado:
+            nasc = nasc_fixado[s["cpf"]]
+        else:
+            idade_ing = rv.randint(cfg["idade_ingresso"]["min"], cfg["idade_ingresso"]["max"])
+            if s["situacao_funcional"] == "INATIVO":
+                anos = (d_ref - est["ingresso"]).days // 365
+                idade_ing = max(idade_ing, 51 - anos)
+            nasc = dt.date(est["ingresso"].year - idade_ing,
+                           est["ingresso"].month, min(est["ingresso"].day, 28))
+            nasc_fixado[s["cpf"]] = nasc
+            pessoas[s["cpf"]]["nasc"] = nasc
+        s["data_nascimento"] = nasc.isoformat()
+        return tr
+
+    def moldes_elegiveis(cargo, tem_funcao):
+        """Camada A por cargo do assento; assento com funcao prefere moldes cuja
+        historia assume funcao; Agente NUNCA recebe molde com designacao (§5)."""
+        A = [a for a in semente["camada_A"] if "vinculos" not in a]
+        cand = [a for a in A if a.get("cargo", "Analista") == CARGO_SEMENTE[cargo]]
+        if cargo == "Agente" or not cand:
+            cand = [a for a in A if not traj.tem_designacao(a)]
+        if tem_funcao:
+            pref = [a for a in cand if traj.tem_designacao(a)]
+            cand = pref or cand
+        return cand
+
+    # (a) DG/Vice — arquetipos institucionais fixos (semente ids 99/98)
+    for s in servidores:
+        if s["nome"] == "Luís Ovolino":
+            estampa_arquetipo(s, "Luís Ovolino")
+        elif s["nome"] == "João Equino":
+            estampa_arquetipo(s, "João Equino")
+
+    # (b) Camada A — estampa por PESO do designer (cargo do assento restringe)
+    for s in servidores:
+        if s["arquetipo"]:
+            continue
+        cand = moldes_elegiveis(s["cargo"], bool(s["funcao_comissionada"]))
+        molde = rng.choices(cand, weights=[a["peso"] for a in cand], k=1)[0]
+        estampa_arquetipo(s, molde["nome"])
+
+    # (c) Camada B — PLANTADOS (contagem fixa, invariante ao N; casos-limite)
+    fixos_nomes = {"Luís Ovolino", "João Equino"}
+    plantaveis = [b for b in semente["camada_B"] if b["nome"] not in fixos_nomes]
+    pool = [s for s in servidores
+            if not s["funcao_comissionada"] and s["nome"] not in fixos_nomes]
+    vitimas = iter(rng.sample(pool, sum(b["contagem"] for b in plantaveis)))
+    for b in plantaveis:
+        cargo_b = {v: k for k, v in CARGO_SEMENTE.items()}[b.get("cargo", "Analista")]
+        for _ in range(b["contagem"]):
+            s = next(vitimas)
+            s["cargo"] = cargo_b
+            nasc_fixado.pop(s["cpf"], None)      # re-deriva nasc p/ o arco completo
+            estampa_arquetipo(s, b["nome"])
+
+    # (d) acumulacao licita = arquetipo BRUNO (1 pessoa, 2 vinculos, 2 vidas)
+    ja_unicos = {s["nome"] for s in servidores
+                 if s["arquetipo"] in {b["nome"] for b in plantaveis} | fixos_nomes}
     candidatos = [s for s in servidores
-                  if not s["funcao_comissionada"] and s["situacao_funcional"] == "ATIVO"]
+                  if not s["funcao_comissionada"] and "#" not in s["arquetipo"]
+                  and s["arquetipo"] not in {b["nome"] for b in plantaveis}
+                  and s["nome"] not in fixos_nomes | ja_unicos]
     for s in rng.sample(candidatos, min(n_extra, len(candidatos))):
+        nasc_fixado.pop(s["cpf"], None)
+        tr_a = estampa_arquetipo(s, "Bruno Vespertílio#A")
         clone = dict(s)
         clone["matricula_funcional"] = nova_matricula()
         clone["funcao_comissionada"] = ""
         clone["nova_funcao"] = ""; clone["data_ingresso_nova_funcao"] = ""
         clone["cod_afastamento_vigente"] = ""   # afastamento nao viaja entre vinculos
-        universo = sorted(tecnico_ok) if clone["cargo"] == "Técnico" else lotaveis
-        un2 = rng.choice(universo)
+        clone["cargo"] = "Analista"             # 2o concurso (spec B da semente)
+        un2 = rng.choice(lotaveis)
         clone["cod_unidade_lotacao"] = clone["cod_unidade_exercicio"] = unidades[un2]["cod"]
         clone["origem_unidade"] = "SIAPE" if un2 in orfas else "SIORG"
+        estampa_arquetipo(clone, "Bruno Vespertílio#B",
+                          ingresso_base=tr_a["estado"]["ingresso"])
         servidores.append(clone)
 
     # ---- populacoes de acesso (spec Secao 7) --------------------------------
@@ -478,7 +568,9 @@ def gerar(cfg, outdir):
             "sigla_nivel_cargo","funcao_comissionada","nova_funcao","data_ingresso_nova_funcao",
             "cod_unidade_lotacao","cod_unidade_exercicio","origem_unidade","situacao_funcional",
             "regime_juridico","data_exercicio_no_orgao","cod_afastamento_vigente",
-            "data_referencia","cod_mecanica"]
+            "data_referencia","cod_mecanica",
+            "arquetipo","traj_salt"]   # v0.3: contrato com o gerador de eventos
+                                       # (o loader ignora colunas extras — nao vao ao banco)
     with open(outdir / "servidor.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=cols); w.writeheader(); w.writerows(servidores)
 
@@ -548,9 +640,21 @@ def validar(servidores, pessoas, acessos, unidades, orfas, fator, cfg, d_ref, ou
     dg = [s for s in servidores if s["nome"] == "Luís Ovolino"]
     check(len(dg) == 1 and dg[0]["funcao_comissionada"] == "CCE 1.18", "DG = Luis Ovolino CCE 1.18")
 
-    # --- FKs de dominio (espelho do seed_dominios.sql) ------------------------
+    # --- arquetipos (v0.3: a vida vem do designer) -----------------------------
+    check(all(s.get("arquetipo") for s in servidores), "todo vinculo tem arquetipo")
+    por_arq = {}
+    for s in servidores:
+        por_arq[s["arquetipo"]] = por_arq.get(s["arquetipo"], 0) + 1
+    check(por_arq.get("Elias Elefante", 0) == 2, f"plantados: Elias x{por_arq.get('Elias Elefante', 0)} (esperado 2)")
+    check(por_arq.get("Gerson Raposão", 0) == 2, f"plantados: Gerson x{por_arq.get('Gerson Raposão', 0)} (esperado 2)")
+    check(por_arq.get("Vicente Cachorro-do-Mato", 0) == 1, f"plantados: Vicente x{por_arq.get('Vicente Cachorro-do-Mato', 0)} (esperado 1)")
+    check(por_arq.get("Bruno Vespertílio#A", 0) == por_arq.get("Bruno Vespertílio#B", 0),
+          "Bruno: pares #A/#B casados")
+
+    # --- FKs de dominio (espelho do seed_dominios.sql v0.2) -------------------
     DOM_SITUACAO = {"ATIVO", "INATIVO", "CEDIDO", "DISPONIBILIDADE", "DESLIGADO"}
-    DOM_AFAST = set(AFASTAMENTOS_SORTEAVEIS) | {"40", "31"}
+    DOM_AFAST = {"01", "03", "05", "06", "07", "10", "11", "12,13", "15", "17-20,35,43",
+                 "21,39,45", "22,36", "24", "25", "29", "31", "40"}
     check(all(s["situacao_funcional"] in DOM_SITUACAO for s in servidores),
           "situacao_funcional dentro de dom_situacao_vinculo")
     check(all(not s["cod_afastamento_vigente"] or s["cod_afastamento_vigente"] in DOM_AFAST
@@ -588,11 +692,12 @@ def validar(servidores, pessoas, acessos, unidades, orfas, fator, cfg, d_ref, ou
     df = sum(1 for p in pessoas.values() if p["uf"] == "DF")
 
     rel = [f"# Relatorio da massa Reino Animal — seed {cfg['seed']}, jitter aplicado {fator:.3f}",
-           f"carimbo: spec 3_massa_reino_animal_v0_3.md | schema 3_schema_mdm.sql v0.6 | data_referencia {d_ref}",
+           f"carimbo: massa v0.3 ARQUETIPO-PRIMEIRO | semente_trajetorias_v1.yaml | schema v0.11 | data_referencia {d_ref}",
            "",
            f"- vinculos: {n} | pessoas (CPF): {len(cpfs)} | acumulacao: {acum} CPFs",
            f"- cargos: {por_cargo}",
-           f"- situacao: {dict(sorted(por_situacao.items()))} | afastados vigentes: {afastados}",
+           f"- situacao (EMERGENTE dos arquetipos): {dict(sorted(por_situacao.items()))} | afastados vigentes: {afastados}",
+           f"- arquetipos: {dict(sorted(por_arq.items(), key=lambda kv: -kv[1]))}",
            f"- sexo (pessoas): {dict(sorted(sx.items()))} | naturalidade DF: {100*df/len(pessoas):.0f}%",
            f"- comissionados: {sum(por_funcao.values())} | gestores (1.13+): {gestores}",
            f"- por funcao: {dict(sorted(por_funcao.items()))}",

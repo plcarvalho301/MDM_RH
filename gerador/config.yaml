@@ -56,25 +56,17 @@ regime:
   RJU: 0.97
   CLT: 0.03
 
-# situacao funcional vigente (dom_situacao_vinculo). Quem tem funcao e sempre
-# ATIVO; o sorteio abaixo vale so p/ o corpo sem funcao. CEDIDO recebe
-# cod_afastamento 40 e DISPONIBILIDADE recebe 31 (coerencia com dom_afastamento).
-situacao:
-  ATIVO: 0.80
-  INATIVO: 0.10               # aposentado (exige idade>=50 e >=10 anos de casa)
-  CEDIDO: 0.04
-  DISPONIBILIDADE: 0.01
-  DESLIGADO: 0.05
+# --- ARQUETIPOS (v0.3 — alinhamento com o designer) ---------------------------
+# situacao/classe/padrao/afastamento NAO se sorteiam mais: EMERGEM da trajetoria
+# do arquetipo (semente_trajetorias_v1.yaml — pesos Camada A do designer; Camada B
+# plantada por contagem: Elias x2, Gerson x2, Vicente x1). O v0.2 tinha um sorteio
+# demografico aqui (situacao:/classe_peso:/afastado_vigente_pct:) que era
+# DESALINHADO do handoff do designer — morreu nesta versao.
+disponibilidade_pct: 0.35     # dos ELEGIVEIS (ATIVO, sem funcao, ingresso <= 1995,
+                              # sem intercorrencia vigente) — regra de negocio:
+                              # disponibilidade so existiu p/ poucos ativos 1991-2000.
+                              # Alvo ~1-2% do total; elegiveis sao raros (casa antiga).
 
-# classe/padrao: distribuicao PIRAMIDAL; o .py rebaixa se faltar tempo de casa.
-classe_peso:
-  A: 0.40
-  B: 0.30
-  C: 0.20
-  ESPECIAL: 0.10
-
-afastado_vigente_pct: 0.05    # % dos ATIVOs com afastamento vigente (alimenta
-                              # vw_afastado_conta_exercicio — KR 2.2)
 exercicio_difere_lotacao_pct: 0.06  # % com exercicio != lotacao
 nova_funcao_pct: 0.02         # % dos comissionados com funcao em transicao;
                               # data emitida em DDMMYYYY (exercita _data_iso do loader)
