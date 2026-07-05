@@ -3,7 +3,7 @@
 # =============================================================================
 # MDM-RH — GERADOR DE EVENTOS (Reino Animal) — v3 (arquetipo-primeiro)
 # Ancoras: trajetorias.py (motor unico) | semente_trajetorias_v1.yaml |
-#          gen_massa.py v0.3 | 3_catalogo_eventos_v1.yaml v1.1 | ADR-008/009
+#          gen_massa.py v0.3 | 3_catalogo_eventos_v1.yaml v1.2 | ADR-008/009/011
 # -----------------------------------------------------------------------------
 # v3: o gerador NAO tem maquina de estados propria — ele RE-RODA, por vinculo, a
 # MESMA trajetoria de arquetipo que o gen_massa estampou (rng identico via
@@ -15,6 +15,7 @@
 #
 # CARGAS (ADR-009 exercitada desde o nascimento):
 #   carga_base  = trajetorias | carga_folha = FECHAMENTO_FOLHA (volume)
+#   carga_pss   = CONTRIBUICAO_PSS (2a fonte da Calculadora, 4.22; --sem-pss desliga)
 #   carga_lixo  = fixture de RETRATACAO OPERACIONAL (30 duplicatas, --sem-lixo desliga)
 #
 # Uso: python gerador_eventos.py [--foto gerador/out/servidor.csv] [--out gerador/out] --valida
@@ -68,6 +69,32 @@ def gera_folha(rng, em, mat, cpf, fol, data_ref):
                       "rubricas": [{"cod_rubrica": 1, "nome_rubrica": "VENCIMENTO BASICO",
                                     "valor_rubrica": round(rng.uniform(8000, 24000), 2),
                                     "indicador_rd": "R", "numero_seq": 1}]})
+            n += 1
+        d = add_meses(d, 1)
+    return n
+
+
+# ── PSS mensal (carga propria — destacavel, ADR-009; espelha 4.22) ───────────
+def gera_pss(rng, em, mat, cpf, fol, data_ref):
+    """CONTRIBUICAO_PSS: uma por mes de vida funcional, do provimento a competencia
+    atual — SEM piso temporal (fonte SIAPE, nao eSocial; handoff B.2.1). Pula os
+    MESMOS meses sem remuneracao que a folha (pausas): sem folha => sem contribuicao.
+    pss_apurado e int (aliquota RPPS 11% da base, arredondado); os arrays datados do
+    4.22 (ferias/lpa/afastamentos/reclusao) ficam de fora da massa base — insumo de
+    dias-liquidos, nao numero apurado (catalogo v1.2)."""
+    n = 0
+    d = date(fol["ingresso"].year, fol["ingresso"].month, 1)
+    fim = fol["fim_folha"] or data_ref          # DESLIGADO para; INATIVO segue (proventos)
+    while d <= fim:
+        if not any(p0 <= d <= p1 for p0, p1 in fol["pausas"]):
+            base = round(rng.uniform(8000, 24000), 2)
+            apurado = int(round(base * 0.11))    # int: o payload/MV tipam pss_apurado como int
+            em.emite("carga_pss", mat, cpf, "CONTRIBUICAO_PSS", add_meses(d, 1),
+                     {"gr_matricula": int(mat),
+                      "ano_contribuicao": d.year, "mes_contribuicao": d.month,
+                      "indice_reajuste": 1,
+                      "pss_apurado": apurado, "pss_informado": apurado,
+                      "remuneracao_pss": base, "remuneracao_pss_ajustada": base})
             n += 1
         d = add_meses(d, 1)
     return n
@@ -134,6 +161,7 @@ def main():
     ap.add_argument("--semente", default=os.path.join(aqui, "semente_trajetorias_v1.yaml"))
     ap.add_argument("--out", default=os.path.join(aqui, "out"))
     ap.add_argument("--sem-folha", action="store_true")
+    ap.add_argument("--sem-pss", action="store_true")
     ap.add_argument("--sem-lixo", action="store_true")
     ap.add_argument("--valida", action="store_true")
     a = ap.parse_args()
@@ -205,6 +233,17 @@ def main():
             em.emite("carga_lixo", l[2], l[3], l[4], date.fromisoformat(l[5]), pl,
                      atraso_h=48, fonte="CARGA_APOSENTADOS_DEFEITUOSA", grau="medio")
 
+    # Carga-PSS: 2a fonte da Calculadora (WS_SIAPE_CONSULTAS 4.22; handoff 2026-07-05).
+    # Criada e emitida DEPOIS de base/folha/lixo DE PROPOSITO: o rng stream das tres
+    # cargas ja carregadas fica intacto (mesmos id_carga/uuid), e o PSS entra puramente
+    # aditivo — pode ser carregado sozinho, sem retocar as demais.
+    n_pss = 0
+    if not a.sem_pss:
+        em.carga("carga_pss")
+        rng_p = random.Random(f"{seed}:pss")
+        for mat, cpf, fol in folhas:
+            n_pss += gera_pss(rng_p, em, mat, cpf, fol, data_ref)
+
     # Validacao: replay-de-intervalo (SO dos eventos) vs FOTO — o juiz final
     if a.valida:
         por_mat = {}
@@ -245,7 +284,7 @@ def main():
         fh.write("-- depois: REFRESH MATERIALIZED VIEW CONCURRENTLY mv_filme_servidor; etc.\n")
 
     print(f"[ok] vinculos={len(foto)} eventos_base={manif.get('carga_base',{}).get('eventos',0)} "
-          f"folha={n_folha} lixo={manif.get('carga_lixo',{}).get('eventos',0)} data_ref={data_ref}")
+          f"folha={n_folha} pss={n_pss} lixo={manif.get('carga_lixo',{}).get('eventos',0)} data_ref={data_ref}")
 
 
 if __name__ == "__main__":
