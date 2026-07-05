@@ -16,13 +16,12 @@ o caminho ODBC/Power BI (confirmado pelo Pedro: "deu certo").
 | `docs/3_catalogo_eventos_v1.yaml` | v1.1 → **v1.2** | Novo tipo `CONTRIBUICAO_PSS` em `compensacao` (payload do WS_SIAPE_CONSULTAS 4.22: campos apurados + arrays datados ferias/lpa/afastamentos/reclusao como ATRIBUTO, não evento-espelho). Descrição do sub-domínio `compensacao` atualizada (duas fontes). | `044ef38` |
 | `sql/seed_dominios.sql` | (mesma) | + linha `CONTRIBUICAO_PSS` em `dom_tipo_evento`; descrição de `compensacao` atualizada. | `044ef38` |
 | `docs/1_adr_mdm.md` | +**ADR-011** | ADR-011 — Calculadora: MV por fronteira de payload (folha × PSS); rubrica explodida por grão. Registra as duas pendências do Code (uma MV × duas; grão da rubrica) e o porquê da escolha. | `044ef38` |
-| `gerador/gerador_eventos.py` | (mesma) | `gera_pss()` espelha `gera_folha()`; nova `carga_pss`; flag `--sem-pss`. Emitida DEPOIS de base/folha/lixo de propósito (não perturba o rng das cargas já carregadas). | `742a838` |
+| `gerador/gerador_eventos.py` | (mesma) | `gera_pss()` espelha `gera_folha()`; nova `carga_pss`; flag `--sem-pss`. Emitida DEPOIS de base/folha/lixo de propósito (não perturba o rng das cargas já carregadas). O `load_eventos.sql` gerado passou a emitir os `REFRESH` reais das 4 MVs do v0.13 (era comentário vago) — reconstrução do zero popula tudo sem passo manual. | `742a838`, `823b923` |
 
-**Fora do git (one-shot):** `migra_calculadora_pss.sql` — migração operacional que trouxe o
-`mdm_rh` já povoado ao v0.13 (INSERT do tipo → `\copy` da carga_pss → swap das MVs). Ficou no
-scratchpad porque hardcoda o `id_carga` da carga PSS (seed 42) e o caminho reproduzível de
-zero é `3_schema_mdm.sql` v0.13 + seed + gerador. **PENDÊNCIA LEVE:** decidir se promove pra
-`sql/` como script operacional (modelo do `roteiro_retratacao_adr009.sql`) ou descarta.
+**Migração operacional — DESCARTADA (decisão do Pedro, 2026-07-05):** o one-shot
+`migra_calculadora_pss.sql` (que trouxe o `mdm_rh` povoado ao v0.13) NÃO entra no corpus.
+O caminho reproduzível único é `3_schema_mdm.sql` v0.13 + `seed_dominios.sql` + gerador +
+`load_eventos.sql` — provado em banco limpo (ver §4, item 8).
 
 ---
 
@@ -68,6 +67,9 @@ de carga. `REFRESH MATERIALIZED VIEW CONCURRENTLY` OK nas duas MVs novas (caminh
 6. Replay-de-intervalo do gerador segue **0 divergências** em 1300 vínculos (PSS é aditivo, não
    entra na máquina de estados — não mexeu no replay). ✔
 7. Views finas: **0 colunas jsonb**, dado íntegro (271.933 cada). ✔
+8. **Reconstrução do zero** em banco limpo (schema v0.13 → seed → `load_eventos.sql`): as 4 MVs
+   populam sozinhas (filme_servidor 561.695 · filme_gestor 17.829 · calc_folha 271.933 ·
+   calc_pss 271.933). Cargas byte-idênticas entre rodadas (determinístico). ✔
 
 ---
 
@@ -93,9 +95,10 @@ de carga. `REFRESH MATERIALIZED VIEW CONCURRENTLY` OK nas duas MVs novas (caminh
 - **PENDÊNCIA DO PEDRO — dias líquidos:** onde a conta mora (cruzar arrays de afastamento do 4.22
   × `dom_afastamento.conta_efetivo_exercicio`). O mecanismo v0.11 (regra-como-dado) provavelmente
   absorve; confirmar quando o cálculo for construído.
-- **PENDÊNCIA LEVE — `migra_calculadora_pss.sql`:** promover a `sql/` ou descartar (ver §1).
 - **B.2 loader real:** o loader Python de produção precisará do ramo para o payload 4.22 quando a
   ingestão viva abrir (hoje a massa entra por `\copy`, mecânica=extracao). Não urgente.
+
+_(A pendência do `migra_calculadora_pss.sql` foi resolvida: descartada — ver §1.)_
 
 ---
 
