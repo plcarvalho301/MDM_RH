@@ -494,11 +494,12 @@ LEFT JOIN dom_regime_juridico rj ON rj.cod             = s.regime_juridico;
 -- sobre EVENTO (ex.: suspensoes x uorg) e outra fonte, outro objeto: fora daqui.
 CREATE VIEW vw_lente AS
 SELECT cod_unidade_lotacao,
+       nome_unidade_lotacao,                           -- rotulo (nulo = toca orfa, KR 2.1)
        count(*)                                        AS headcount,
        count(*) FILTER (WHERE afastado)                AS afastados,
        count(*) FILTER (WHERE funcao_comissionada IS NOT NULL) AS com_funcao
 FROM vw_foto
-GROUP BY cod_unidade_lotacao;
+GROUP BY cod_unidade_lotacao, nome_unidade_lotacao;
 
 -- ── Filme-Servidor ──────────────────────────────────────────────────────────
 -- MV: replay da serie de eventos do proprio servidor. Payload CHEIO (o servidor
