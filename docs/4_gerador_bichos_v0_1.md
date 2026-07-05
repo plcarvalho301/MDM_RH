@@ -56,13 +56,14 @@ do passo 4 (o v1 gerava um universo paralelo — a "cagada" já corrigida).
 # 1. FOTO canônica (+ seeds de unidade/função + pessoa/acessos)
 python gerador/gen_massa.py --config gerador/config.yaml --outdir gerador/out
 
-# 2. EVENTOS que aterrissam na foto (base + folha + lixo)
-python gerador/gerador_eventos.py --foto gerador/out/servidor.csv --out gerador/out --valida
+# 2. Banco: schema + TODOS os domínios PRIMEIRO (o gerador lê as regras deles)
+psql -d mdm_rh -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;" \
+     -f sql/3_schema_mdm.sql -f sql/seed_dominios.sql \
+     -f gerador/out/seed_unidades_reino_animal.sql \
+     -f gerador/out/seed_funcao_reino_animal.sql
 
-# 3. Banco: schema v0.9 + domínios-base + seeds da massa
-psql -d mdm_rh -f sql/3_schema_mdm.sql -f sql/seed_dominios.sql \
-                -f gerador/out/seed_unidades_reino_animal.sql \
-                -f gerador/out/seed_funcao_reino_animal.sql
+# 3. EVENTOS que aterrissam na foto (lê regras de modelo do banco; base+folha+lixo)
+python gerador/gerador_eventos.py --foto gerador/out/servidor.csv --out gerador/out --valida
 
 # 4. Carrega FOTO e EVENTOS
 python loader/carrega_foto.py --csv gerador/out/servidor.csv
@@ -152,10 +153,11 @@ arquétipo (coluna nova em `servidor.csv`; a foto snapshot não carrega isso). D
 `gera_eventos` roteia esses para a lógica rica da `semente_trajetorias_v1.yaml`.
 *Maior valor de teste (é onde moram as cadeias que quebram a perna do RH); esforço médio.*
 
-**B. Regras de modelo viram dado (decisão #5).** Extrair situação→afastamento
-(CEDIDO→40, DISPONIBILIDADE→31) e o de-para de nomes para uma tabela/seed
-RH-editável. **Desbloqueia:** friendly names no PBI sem hardcode; base do A.
-*Esforço baixo; fecha dívida.*
+**B. Regras de modelo viram dado (decisão #5). ✅ FEITO (schema v0.11).**
+`dom_afastamento.deriva_situacao`/`pausa_folha`; o gerador/replay leem do banco
+(fim do `MOTIVO_DESLIG`/`AFAST_*` hardcoded). Rótulos (E-nível-1) ✅ FEITO (v0.10):
+todo código resolve p/ nome; `vw_foto`/`vw_filme_*` entregam nome pronto. Falta só
+a FRASE amigável (assembler) — refinamento de UX (o "E" grande).*
 
 **C. Destino = banco direto (decisão #6, parte 1).** `gera_eventos --carrega-banco`
 chama o loader em vez de escrever CSV intermediário. **Esforço baixo;** conveniência
