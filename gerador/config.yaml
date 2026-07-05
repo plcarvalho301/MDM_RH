@@ -78,3 +78,11 @@ afastado_vigente_pct: 0.05    # % dos ATIVOs com afastamento vigente (alimenta
 exercicio_difere_lotacao_pct: 0.06  # % com exercicio != lotacao
 nova_funcao_pct: 0.02         # % dos comissionados com funcao em transicao;
                               # data emitida em DDMMYYYY (exercita _data_iso do loader)
+
+# --- gerador de eventos: calibracao (nao e regra de dominio) --------------------
+# motivo default por situacao-alvo do DESLIGAMENTO. E ESCOLHA de geracao (varios
+# motivos mapeiam p/ DESLIGADO), nao regra de dominio — por isso vive no config, nao
+# no dom_motivo_deslig. Os ~14 casos-teste ganham motivo especifico na proxima fase.
+deslig_default:
+  DESLIGADO: "07"             # exoneracao a pedido
+  INATIVO:   "38"             # aposentadoria voluntaria

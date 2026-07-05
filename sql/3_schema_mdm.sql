@@ -1,10 +1,17 @@
 -- =============================================================================
 -- MDM-RH — Schema do golden record (FOTO + EVENTO)
--- versao: v0.10
+-- versao: v0.11
 -- ancora: 3_depara_foto_v0_3.md | 3_catalogo_eventos_v1.yaml (v1.1) | ADR-007 | ADR-008 | ADR-009
 -- =============================================================================
 -- HISTORICO DE VERSAO (versao dentro do arquivo; nome sem versao)
---   v0.10 (este) — ROTULOS (nomes amigaveis) p/ o painel parar de mostrar codigo cru:
+--   v0.11 (este) — REGRAS DE MODELO viram DADO (o gerador/replay leem do banco, nao
+--                 hardcode; regra nova = UPDATE na dimensao, sem deploy):
+--                 (1) dom_afastamento ganha `deriva_situacao` (afast vigente que muda
+--                     a situacao: 40->CEDIDO, 31->DISPONIBILIDADE) e `pausa_folha`
+--                     (afast sem remuneracao: folha pula o mes; hoje so o 05).
+--                 (2) vw_foto: revertido o nome de funcao_comissionada (CCE/FCE ja e
+--                     legivel; nome REAL e sensivel, so no modelo live).
+--   v0.10 — ROTULOS (nomes amigaveis) p/ o painel parar de mostrar codigo cru:
 --                 (1) dom_tipo_evento ganha coluna `nome` (era a UNICA dimensao sem
 --                     rotulo — o Filme mostrava o codigo cru do tipo).
 --                 (2) vw_foto enriquecida: nome_unidade_lotacao/exercicio,
@@ -139,8 +146,14 @@ CREATE TABLE dom_afastamento (
     nome_afastamento         text NOT NULL,
     conta_efetivo_exercicio  text NOT NULL,   -- {sim, nao, parcial} — gancho KR 2.2
     impacto_previdenciario   text,
+    -- v0.11: REGRAS DE MODELO viram DADO (o gerador/replay leem daqui, nao hardcode).
+    deriva_situacao          text,            -- afast vigente que MUDA a situacao derivada
+                                              --   (CEDIDO/DISPONIBILIDADE); null = mantem ATIVO
+    pausa_folha              boolean NOT NULL DEFAULT false,  -- afast sem remuneracao: folha pula o mes
     CONSTRAINT ck_conta_efetivo
-        CHECK (conta_efetivo_exercicio IN ('sim','nao','parcial'))
+        CHECK (conta_efetivo_exercicio IN ('sim','nao','parcial')),
+    CONSTRAINT ck_deriva_situacao
+        CHECK (deriva_situacao IS NULL OR deriva_situacao IN ('CEDIDO','DISPONIBILIDADE'))
 );
 
 -- v0.8 — referenciada pelo PAYLOAD de DESLIGAMENTO (jsonb), sem FK de coluna
@@ -465,14 +478,14 @@ SELECT s.id_vinculo,
        ul.nome_unidade      AS nome_unidade_lotacao,
        ue.nome_unidade      AS nome_unidade_exercicio,
        af.nome_afastamento  AS nome_afastamento_vigente,
-       rj.nome              AS nome_regime,
-       fc.nome              AS nome_funcao_comissionada
+       rj.nome              AS nome_regime
+       -- funcao_comissionada (CCE/FCE) NAO resolve p/ nome: o codigo ja e legivel
+       --   e o nome REAL da funcao e sensivel (so no modelo live), nao ficticio.
 FROM servidor s
 LEFT JOIN dom_unidade_eorg    ul ON ul.cod_unidade     = s.cod_unidade_lotacao
 LEFT JOIN dom_unidade_eorg    ue ON ue.cod_unidade     = s.cod_unidade_exercicio
 LEFT JOIN dom_afastamento     af ON af.cod_afastamento = s.cod_afastamento_vigente
-LEFT JOIN dom_regime_juridico rj ON rj.cod             = s.regime_juridico
-LEFT JOIN dom_funcao          fc ON fc.cod             = s.funcao_comissionada;
+LEFT JOIN dom_regime_juridico rj ON rj.cod             = s.regime_juridico;
 
 -- ── Lente Estrategica ───────────────────────────────────────────────────────
 -- View comum SOBRE A FOTO (agrega numeros sobre o que a Foto ja expoe). Mesma

@@ -90,7 +90,7 @@ def conecta(env):
 
 
 # ── replay de intervalo (porta fiel do replay() do gerador_eventos.py) ───────
-def replay(eventos, data_ref, motivo_situacao):
+def replay(eventos, data_ref, motivo_situacao, afast_deriva):
     """
     Reconstroi o estado de UMA matricula em data_ref pela logica de INTERVALO
     + coalescencia. `eventos` ja vem ordenado por (data_evento, data_carga,
@@ -134,8 +134,8 @@ def replay(eventos, data_ref, motivo_situacao):
     if sit == "ATIVO":
         if any(a <= data_ref <= b for a, b, _ in intervalos["CESSAO"]):
             sit = "CEDIDO"           # derivado, nunca evento; expira sozinho
-        elif afast == "31":
-            sit = "DISPONIBILIDADE"
+        elif afast and afast_deriva.get(afast):
+            sit = afast_deriva[afast]  # dom_afastamento.deriva_situacao (ex.: 31 -> DISPONIBILIDADE)
     if sit not in ("ATIVO", "CEDIDO", "DISPONIBILIDADE"):
         afast, funcao = None, None    # mesmo corte da projecao do gerador
     return {"situacao_funcional": sit, "cod_afastamento_vigente": afast,
@@ -174,6 +174,14 @@ def carrega_motivos(conn):
         return dict(cur.fetchall())
 
 
+def carrega_afast_deriva(conn):
+    """dom_afastamento.deriva_situacao — afast vigente que muda a situacao (DADO)."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT cod_afastamento, deriva_situacao FROM dom_afastamento "
+                    "WHERE deriva_situacao IS NOT NULL")
+        return dict(cur.fetchall())
+
+
 # ── comparacao com a FOTO projetada ──────────────────────────────────────────
 CAMPOS_NUCLEO = ["situacao_funcional"]
 CAMPOS_EXTRA = ["cod_afastamento_vigente", "funcao_comissionada", "classe", "padrao"]
@@ -204,6 +212,7 @@ def main():
     conn = conecta(carrega_env())
     try:
         motivos = carrega_motivos(conn)
+        afast_deriva = carrega_afast_deriva(conn)
         por_mat = busca_eventos(conn, ids, data_ref, a.corte_futuro)
     finally:
         conn.close()
@@ -219,7 +228,7 @@ def main():
     campos = CAMPOS_NUCLEO if a.nucleo_so else CAMPOS_NUCLEO + CAMPOS_EXTRA
     div_nucleo, div_extra, mostradas = 0, 0, 0
     for mat in sorted(set(foto) & set(por_mat)):
-        r = replay(por_mat[mat], data_ref, motivos)
+        r = replay(por_mat[mat], data_ref, motivos, afast_deriva)
         for campo in campos:
             esperado = foto[mat][campo] or None      # celula vazia do CSV = None
             obtido = r[campo]

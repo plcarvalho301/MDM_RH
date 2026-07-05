@@ -65,25 +65,29 @@ ON CONFLICT (cod) DO NOTHING;
 --   por codigo atomico, e decisao de loader (nao de seed).
 -- impacto_previdenciario: texto do corpus preservado (nao normalizado em enum aqui).
 -- =============================================================================
+-- v0.11: deriva_situacao (afast que muda a situacao derivada) e pausa_folha (afast
+--   sem remuneracao) sao REGRAS DE MODELO agora em DADO — o gerador/replay leem daqui.
+--   pausa_folha conservador: so o 05 (LSV) hoje, p/ preservar a massa; expandir por
+--   UPDATE quando o RH confirmar quais suspendem remuneracao de fato.
 INSERT INTO dom_afastamento
-    (cod_afastamento, nome_afastamento, conta_efetivo_exercicio, impacto_previdenciario) VALUES
-    ('01',          'Acidente/Doenca do Trabalho',                    'sim',     'mantem (Ativo)'),
-    ('03',          'Acidente/Doenca nao relacionada ao trabalho',    'sim',     'mantem (Ativo) - ate 24 meses'),
-    ('07',          'Acompanhamento Familiar',                        'parcial', 'suspende salvo facultativo - apos 30 dias sem remuneracao'),
-    ('06',          'Aposentadoria por Invalidez',                    'nao',     'transicao inativo - contribui so sobre excedente do teto RPPS'),
-    ('15',          'Gozo de Ferias ou Recesso',                      'sim',     'mantem (Ativo)'),
-    ('17-20,35,43', 'Licenca Maternidade (e variantes)',              'sim',     'mantem (Ativo)'),
-    ('10',          'Licenca Estatutaria COM remuneracao',            'sim',     'mantem (Ativo)'),
-    ('05',          'Licenca Estatutaria SEM remuneracao',            'nao',     'suspende - salvo recolhimento facultativo'),
-    ('40',          'Exercicio em outro orgao (Cedido)',              'sim',     'mantem na origem - exige controle de repasse do cessionario'),
-    ('22,36',       'Mandato Eleitoral / Eletivo em Comissao',        'sim',     'recolhe como se em exercicio na origem'),
-    ('12,13',       'Cargo Eletivo - Candidato',                      'parcial', 'suspende salvo facultativo - periodo sem remuneracao'),
-    ('24',          'Mandato Sindical',                               'sim',     'recolhe como se em exercicio na origem'),
-    ('29',          'Servico Militar',                                'sim',     'mantem - CLT/RGPS: orgao continua obrigado a recolher FGTS'),
-    ('11',          'Carcere',                                        'sim',     'suspende - se houver suspensao total de remuneracao'),
-    ('25',          'Mulher vitima de violencia',                     'sim',     'mantem (Ativo)'),
-    ('21,39,45',    'Suspensao contratual',                           'nao',     'suspende salvo facultativo'),
-    ('31',          'Servidor em Disponibilidade',                    'sim',     'proporcional - base = valor dos proventos de disponibilidade')
+    (cod_afastamento, nome_afastamento, conta_efetivo_exercicio, impacto_previdenciario, deriva_situacao, pausa_folha) VALUES
+    ('01',          'Acidente/Doenca do Trabalho',                    'sim',     'mantem (Ativo)',                                                    NULL,              false),
+    ('03',          'Acidente/Doenca nao relacionada ao trabalho',    'sim',     'mantem (Ativo) - ate 24 meses',                                     NULL,              false),
+    ('07',          'Acompanhamento Familiar',                        'parcial', 'suspende salvo facultativo - apos 30 dias sem remuneracao',          NULL,              false),
+    ('06',          'Aposentadoria por Invalidez',                    'nao',     'transicao inativo - contribui so sobre excedente do teto RPPS',      NULL,              false),
+    ('15',          'Gozo de Ferias ou Recesso',                      'sim',     'mantem (Ativo)',                                                    NULL,              false),
+    ('17-20,35,43', 'Licenca Maternidade (e variantes)',              'sim',     'mantem (Ativo)',                                                    NULL,              false),
+    ('10',          'Licenca Estatutaria COM remuneracao',            'sim',     'mantem (Ativo)',                                                    NULL,              false),
+    ('05',          'Licenca Estatutaria SEM remuneracao',            'nao',     'suspende - salvo recolhimento facultativo',                         NULL,              true),
+    ('40',          'Exercicio em outro orgao (Cedido)',              'sim',     'mantem na origem - exige controle de repasse do cessionario',        'CEDIDO',          false),
+    ('22,36',       'Mandato Eleitoral / Eletivo em Comissao',        'sim',     'recolhe como se em exercicio na origem',                            NULL,              false),
+    ('12,13',       'Cargo Eletivo - Candidato',                      'parcial', 'suspende salvo facultativo - periodo sem remuneracao',               NULL,              false),
+    ('24',          'Mandato Sindical',                               'sim',     'recolhe como se em exercicio na origem',                            NULL,              false),
+    ('29',          'Servico Militar',                                'sim',     'mantem - CLT/RGPS: orgao continua obrigado a recolher FGTS',          NULL,              false),
+    ('11',          'Carcere',                                        'sim',     'suspende - se houver suspensao total de remuneracao',                NULL,              false),
+    ('25',          'Mulher vitima de violencia',                     'sim',     'mantem (Ativo)',                                                    NULL,              false),
+    ('21,39,45',    'Suspensao contratual',                           'nao',     'suspende salvo facultativo',                                        NULL,              false),
+    ('31',          'Servidor em Disponibilidade',                    'sim',     'proporcional - base = valor dos proventos de disponibilidade',       'DISPONIBILIDADE', false)
 ON CONFLICT (cod_afastamento) DO NOTHING;
 
 

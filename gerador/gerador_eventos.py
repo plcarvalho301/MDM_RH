@@ -47,25 +47,56 @@ from datetime import date, datetime, timedelta, timezone
 
 import yaml
 
-# ── Constantes de dominio (schema v0.9 / seed v0.2) ──────────────────────────
+# ── Constantes estruturais (nao sao regra de dominio) ────────────────────────
 GRADE = [(c, p) for c in ["A", "B", "C", "ESPECIAL"] for p in ["I", "II", "III", "IV", "V"]]
-MOTIVO_DESLIG = {  # cod -> situacao_resultante (dom_motivo_deslig)
-    "07": "DESLIGADO", "08": "DESLIGADO", "09": "DESLIGADO", "25": "DESLIGADO",
-    "38": "INATIVO", "39": "INATIVO",
-    "DEMI_OFICIO": "DESLIGADO", "CASS_APOSENT": "DESLIGADO", "ANUL_PROVIMENTO": "DESLIGADO",
-}
-# motivo default por situacao-alvo do desligamento (casos-teste ganham motivo
-# especifico na proxima fase; aqui o generico honesto):
-DESLIG_DEFAULT = {"DESLIGADO": "07", "INATIVO": "38"}
-AFAST_PAUSA_FOLHA = {"05"}          # LSV: sem remuneracao -> folha pausa
-
-# Regras de derivacao de situacao a partir de intervalos (decisao #5 — vira dado).
-# situacao NAO e evento: deriva da base (PROVIMENTO=ATIVO / DESLIGAMENTO=motivo) +
-# o intervalo vigente na data_ref. Convencao da foto canonica (gen_massa):
-AFAST_CEDIDO = "40"          # CEDIDO tem afast 40 espelho + evento CESSAO
-AFAST_DISPONIBILIDADE = "31"  # DISPONIBILIDADE deriva de afast 31 vigente
 ORGAOS_CESSIONARIOS = ["Chancelaria dos Albatrozes", "Banco Central dos Castores",
                        "Tribunal das Corujas", "Instituto dos Cervos"]
+
+# REGRAS DE MODELO NAO VIVEM AQUI (decisao #5): motivo->situacao, afast->situacao
+# derivada e afast->pausa_folha sao DADO, lidos do banco (dom_motivo_deslig,
+# dom_afastamento). Regra nova = UPDATE na dimensao, sem tocar este codigo.
+
+# ── Regras de modelo lidas do banco (fonte unica) ────────────────────────────
+def carrega_env(path=os.path.join(os.path.dirname(__file__), "..", "loader", ".env")):
+    env = {}
+    if os.path.exists(path):
+        for linha in open(path, encoding="utf-8"):
+            linha = linha.strip()
+            if linha and not linha.startswith("#") and "=" in linha:
+                k, v = linha.split("=", 1)
+                env[k.strip()] = v.strip()
+    for k in ("PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD"):
+        if os.environ.get(k):
+            env[k] = os.environ[k]
+    return env
+
+
+def carrega_regras(env):
+    """Le as regras de MODELO do banco (dom_motivo_deslig, dom_afastamento). O
+    gerador honra o golden record — nao carrega copia hardcoded (que dessincroniza
+    quando o RH edita a dimensao). Exige os dominios ja semeados (dominios ANTES
+    do gerador no pipeline)."""
+    import psycopg2
+    conn = psycopg2.connect(
+        host=env.get("PGHOST", "localhost"), port=env.get("PGPORT", "5432"),
+        dbname=env.get("PGDATABASE", "mdm_rh"), user=env.get("PGUSER", "postgres"),
+        password=env.get("PGPASSWORD", ""))
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT cod_motivo_deslig, situacao_resultante FROM dom_motivo_deslig")
+            motivo_sit = dict(cur.fetchall())
+            cur.execute("SELECT cod_afastamento, deriva_situacao, pausa_folha FROM dom_afastamento")
+            afast_deriva, afast_pausa = {}, set()
+            for cod, deriva, pausa in cur.fetchall():
+                if deriva:
+                    afast_deriva[cod] = deriva
+                if pausa:
+                    afast_pausa.add(cod)
+    finally:
+        conn.close()
+    if not motivo_sit or not afast_deriva:
+        sys.exit("dominios vazios no banco — rode schema + seed_dominios ANTES do gerador.")
+    return {"motivo_sit": motivo_sit, "afast_deriva": afast_deriva, "afast_pausa": afast_pausa}
 
 
 # ── Helpers de data ──────────────────────────────────────────────────────────
@@ -115,9 +146,10 @@ class Emissor:
 
 
 # ── Aterrissagem: eventos de UM vinculo que terminam no estado fotografado ───
-def gera_eventos_vinculo(rng, em, row, data_ref, frac_dois):
+def gera_eventos_vinculo(rng, em, row, data_ref, frac_dois, regras, deslig_default):
     """Recebe uma linha da FOTO canonica e emite a serie de eventos que aterrissa
-    nela. Retorna o insumo da folha (ingresso, fim_folha, pausas)."""
+    nela. Retorna o insumo da folha (ingresso, fim_folha, pausas). Regras de modelo
+    (motivo->situacao, afast->pausa_folha) vem do banco via `regras`."""
     mat, cpf = row["matricula_funcional"], row["cpf"]
     sit_alvo = row["situacao_funcional"]
     ingresso = d28(date.fromisoformat(row["data_exercicio_no_orgao"]))
@@ -135,7 +167,7 @@ def gera_eventos_vinculo(rng, em, row, data_ref, frac_dois):
         span = max((data_ref - ingresso).days, 30)
         dt_des = d28(ingresso + timedelta(days=rng.randint(span // 2, span)))
         dt_des = min(dt_des, data_ref)
-        motivo = DESLIG_DEFAULT[sit_alvo]
+        motivo = deslig_default[sit_alvo]
         em.emite("carga_base", mat, cpf, "DESLIGAMENTO", dt_des,
                  {"cod_motivo_deslig": motivo, "data_desligamento": dt_des.isoformat()})
         encerrado_em = dt_des
@@ -186,7 +218,7 @@ def gera_eventos_vinculo(rng, em, row, data_ref, frac_dois):
                      dict(chave, data_fim=fim.isoformat()), atraso_h=6)
         else:
             em.emite("carga_base", mat, cpf, "AFASTAMENTO", ini, dict(chave, data_fim=None))
-        if cod in AFAST_PAUSA_FOLHA:
+        if cod in regras["afast_pausa"]:
             pausas.append((ini, fim))
 
     if sit_alvo in ("ATIVO", "CEDIDO", "DISPONIBILIDADE") and cod_af:
@@ -204,7 +236,7 @@ def gera_eventos_vinculo(rng, em, row, data_ref, frac_dois):
                          dict(ch, data_fim=fim_af.isoformat()), atraso_h=6)
             else:
                 em.emite("carga_base", mat, cpf, "CESSAO", ini_ces, dict(ch, data_fim=None))
-            emite_afast(AFAST_CEDIDO, ini_af, fim_af)
+            emite_afast(cod_af, ini_af, fim_af)     # cod_af da foto = 40 (CEDIDO)
         else:
             emite_afast(cod_af, ini_af, fim_af)     # ATIVO+cod ou DISPONIBILIDADE (31)
 
@@ -230,9 +262,10 @@ def gera_folha(rng, em, mat, cpf, fol, data_ref):
 
 
 # ── Replay de validacao (ADR-008; 5 situacoes) ───────────────────────────────
-def replay(eventos, data_ref):
+def replay(eventos, data_ref, regras):
     """Reconstroi o estado por INTERVALO + coalescencia. Retorna o dict que a foto
-    canonica declara (situacao/afast/funcao/classe/padrao)."""
+    canonica declara (situacao/afast/funcao/classe/padrao). Mapas de derivacao
+    (motivo->situacao, afast->situacao derivada) vem do banco via `regras`."""
     evs = sorted(eventos, key=lambda e: (e["data_evento"], e["data_carga"], e["id_evento"]))
     sit = None
     aberto = {}                       # (tipo, data_inicio) -> payload (coalescencia)
@@ -243,7 +276,7 @@ def replay(eventos, data_ref):
         if t == "PROVIMENTO":
             sit = "ATIVO"
         elif t == "DESLIGAMENTO":
-            sit = MOTIVO_DESLIG[pl["cod_motivo_deslig"]]
+            sit = regras["motivo_sit"][pl["cod_motivo_deslig"]]
         elif t == "RETORNO_VINCULO":
             sit = "ATIVO"
         elif t in ("CESSAO", "AFASTAMENTO"):
@@ -263,8 +296,8 @@ def replay(eventos, data_ref):
     if sit == "ATIVO":
         if cedido:
             sit = "CEDIDO"
-        elif af_vig == AFAST_DISPONIBILIDADE:
-            sit = "DISPONIBILIDADE"
+        elif af_vig and regras["afast_deriva"].get(af_vig):
+            sit = regras["afast_deriva"][af_vig]      # ex.: 31 -> DISPONIBILIDADE
     if sit not in ("ATIVO", "CEDIDO", "DISPONIBILIDADE"):
         af_vig, funcao = None, None
     return {"situacao_funcional": sit, "cod_afastamento_vigente": af_vig,
@@ -290,6 +323,8 @@ def main():
     seed = cfg["seed"]
     frac_dois = 0.25            # fracao de intercorrencias como par (ADR-008/v0.9)
     rng = random.Random(seed)
+    regras = carrega_regras(carrega_env())      # regras de modelo do banco (fonte unica)
+    deslig_default = cfg["deslig_default"]       # calibracao (config, nao dominio)
 
     with open(a.foto, encoding="utf-8", newline="") as f:
         foto = list(csv.DictReader(f))
@@ -303,7 +338,7 @@ def main():
 
     folhas = []
     for row in foto:
-        fol = gera_eventos_vinculo(rng, em, row, data_ref, frac_dois)
+        fol = gera_eventos_vinculo(rng, em, row, data_ref, frac_dois, regras, deslig_default)
         folhas.append((row["matricula_funcional"], row["cpf"], fol))
 
     n_folha = 0
@@ -330,7 +365,7 @@ def main():
                   "classe", "padrao"]
         div = 0
         for row in foto:
-            r = replay(por_mat[row["matricula_funcional"]], data_ref)
+            r = replay(por_mat[row["matricula_funcional"]], data_ref, regras)
             for c in campos:
                 esp = row[c] or None
                 if r[c] != esp:
