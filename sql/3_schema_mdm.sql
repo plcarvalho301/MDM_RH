@@ -1,10 +1,20 @@
 -- =============================================================================
 -- MDM-RH — Schema do golden record (FOTO + EVENTO)
--- versao: v0.13
--- ancora: 3_depara_foto_v0_3.md | 3_catalogo_eventos_v1.yaml (v1.2) | ADR-007 | ADR-008 | ADR-009 | ADR-010 | ADR-011
+-- versao: v0.14
+-- ancora: 3_depara_foto_v0_3.md | 3_catalogo_eventos_v1.yaml (v1.3) | ADR-007 | ADR-008 | ADR-009 | ADR-010 | ADR-011
 -- =============================================================================
 -- HISTORICO DE VERSAO (versao dentro do arquivo; nome sem versao)
---   v0.13 (este) — VITRINE ODBC DA CALCULADORA SEM jsonb: vw_mv_calculadora_folha e
+--   v0.14 (este) — 6o ESTADO DE VINCULO: TRANSFERIDO (redistribuicao, motivos 29/37).
+--                 dom_situacao_vinculo ganha 'TRANSFERIDO'; ck_motivo_resultado passa a
+--                 aceitar TRANSFERIDO (era TRANSFERE — valor ORFAO: nao existia em
+--                 dom_situacao_vinculo, violaria fk_situacao no dia em que o replay
+--                 gravasse a situacao derivada de um DESLIGAMENTO motivo 29/37). Inerte
+--                 ate agora so porque a massa nao emite 29/37 (config: 07/38). Fecha o
+--                 risco 1b da reconciliacao. FRASEAMENTO do estado (a frase tem de dizer
+--                 origem->destino->data) fica PENDENTE — ver ADR Secao 2; consequencia:
+--                 o payload de DESLIGAMENTO 29/37 tera de capturar o orgao destino (hoje
+--                 ausente), senao a frase nao se monta.
+--   v0.13 — VITRINE ODBC DA CALCULADORA SEM jsonb: vw_mv_calculadora_folha e
 --                 vw_mv_calculadora_pss deixam de ser SELECT * e listam coluna nomeada
 --                 SEM `payload`. Motivo: psqlODBC nao expoe tipo jsonb ao Power BI
 --                 (Navegador acusa "coluna sem tipo suportado"). NAO e recorte de
@@ -196,9 +206,9 @@ CREATE TABLE dom_afastamento (
 CREATE TABLE dom_motivo_deslig (
     cod_motivo_deslig  text PRIMARY KEY,       -- '07','38'... (eSocial) | 'CASS_APOSENT'... (local)
     nome_motivo        text NOT NULL,
-    situacao_resultante text NOT NULL,          -- {DESLIGADO, INATIVO, TRANSFERE}
+    situacao_resultante text NOT NULL,          -- {DESLIGADO, INATIVO, TRANSFERIDO}
     e_esocial          boolean NOT NULL DEFAULT true,
-    CONSTRAINT ck_motivo_resultado CHECK (situacao_resultante IN ('DESLIGADO','INATIVO','TRANSFERE'))
+    CONSTRAINT ck_motivo_resultado CHECK (situacao_resultante IN ('DESLIGADO','INATIVO','TRANSFERIDO'))
 );
 
 CREATE TABLE dom_unidade_eorg (

@@ -1,7 +1,15 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// MDM-RH — CATÁLOGO DE EVENTOS  (v1.2, rascunho de trabalho)
+// MDM-RH — CATÁLOGO DE EVENTOS  (v1.3, rascunho de trabalho)
 // Catálogo PRINCIPAL do event store. Sub-domínios: cadastro, vinculos, intercorrencias, compensacao, jornada (+ desempenho/capacidades no catalogo_estendido).
-// Data: 2026-06-22 | v1.1: 2026-07-05 | v1.2: 2026-07-05
+// Data: 2026-06-22 | v1.1: 2026-07-05 | v1.2: 2026-07-05 | v1.3: 2026-07-05
+//
+// CHANGELOG v1.3 (reconciliação do Project — risco 1b):
+//   - DESLIGAMENTO motivos 29/37 (redistribuição): resultado passa de texto livre
+//     "transfere vínculo" para a situação TRANSFERIDO — 6º estado de dom_situacao_vinculo
+//     (schema v0.14). Antes o valor era órfão (não existia como situação). Fraseamento
+//     do estado (a frase deve indicar origem→destino→data) fica PENDENTE — ver ADR
+//     Seção 2; consequência: payload de DESLIGAMENTO 29/37 precisará capturar órgão
+//     destino (hoje ausente).
 //
 // CHANGELOG v1.2 (handoff Calculadora completa — folha + PSS):
 //   - NOVO TIPO CONTRIBUICAO_PSS em `compensacao`. Faltava: o prespec §5 fixa
@@ -521,8 +529,8 @@ dominios_novos:
       - { cod: "25", nome: "Vacância (inacumulável)", resultado: Desligado }
       - { cod: "38", nome: "Aposentadoria voluntária", resultado: Inativo }
       - { cod: "39", nome: "Aposentadoria compulsória", resultado: Inativo }
-      - { cod: "29", nome: "Redistribuição",          resultado: "transfere vínculo" }
-      - { cod: "37", nome: "Redistribuição (variante)", resultado: "transfere vínculo" }
+      - { cod: "29", nome: "Redistribuição",          resultado: TRANSFERIDO, obs: "situação TRANSFERIDO (6º estado, v0.14). Fraseamento origem→destino→data pendente — ver ADR Seção 2" }
+      - { cod: "37", nome: "Redistribuição (variante)", resultado: TRANSFERIDO }
       // LOCAIS (v1.1, não-eSocial, dono=interno — sessão 2026-07-05):
       - { cod: "DEMI_OFICIO",     nome: "Demissão de ofício (penalidade disciplinar)",   resultado: Desligado, e_esocial: false }
       - { cod: "CASS_APOSENT",    nome: "Cassação de aposentadoria",                     resultado: Desligado, e_esocial: false, obs: "2º DESLIGAMENTO sobre estado Inativo (arquétipo Gerson)" }

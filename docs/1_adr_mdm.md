@@ -259,6 +259,16 @@ Direção definida, martelo não batido. Não numeradas de propósito: ficam vis
 
 ---
 
+### Fraseamento do estado TRANSFERIDO (redistribuição)
+
+**Direção atual.** Redistribuição (DESLIGAMENTO motivos 29/37) resolve para a situação **TRANSFERIDO** — 6º estado de `dom_situacao_vinculo`, criado no schema v0.14. Isso fecha o risco do valor órfão `TRANSFERE` (levantado na reconciliação do Project, 2026-07-05): `dom_motivo_deslig.situacao_resultante` admitia `TRANSFERE`, que não existia em `dom_situacao_vinculo` e violaria a FK `fk_situacao` no dia em que o replay gravasse a situação derivada — inerte só porque a massa não emite 29/37. **O ESTADO está fechado e implementado**; o que fica aberto é o **fraseamento**.
+
+**Por que está aberta.** Ligada à pendência de fraseamento (descritor de evento / frase amigável — `2_descritores_eventos_v0_1.md`, item E do roadmap do gerador), ainda não modelada. Decisão do Pedro (2026-07-05): quando o fraseamento for modelado, a frase de TRANSFERIDO **tem de indicar origem E destino** — algo como "Transferido do órgão X para o órgão Y em «data»", não um "transferido" solto. Isso impõe uma **consequência de dado ainda não resolvida**: o payload de DESLIGAMENTO para 29/37 precisará capturar o **órgão destino** (a origem é o próprio órgão do vínculo). Hoje o payload só tem `cod_motivo_deslig` + `data_desligamento` — sem o destino, a frase não se monta.
+
+**O que falta.** (a) Modelar o fraseamento (pendência E do gerador); (b) nesse momento, estender o payload de DESLIGAMENTO 29/37 com o órgão destino (campo novo, ex. `orgao_destino`); (c) confirmar se a origem sai do vínculo ou precisa ser gravada. Vira ADR numerada quando o fraseamento fechar.
+
+---
+
 ### PROGRESSAO sem leiaute eSocial
 
 **Direção atual.** Progressão/promoção não tem S-22xx próprio — é inferida de diff de classe/padrão. Tipo existe no catálogo com `ativo=false` (fora da Calculadora) até o RH fechar as regras de carreira (interstício, requisitos). Também é candidata forte a evento de **extração** no retroativo (a série de classe/padrão antiga não vem da API).

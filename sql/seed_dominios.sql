@@ -40,7 +40,8 @@ INSERT INTO dom_situacao_vinculo (cod_situacao, nome_situacao) VALUES
     ('INATIVO',        'Inativo (aposentado)'),           -- S-2299 mtv 38/39
     ('CEDIDO',         'Cedido'),                          -- S-2231
     ('DISPONIBILIDADE','Servidor em disponibilidade'),     -- S-2230 cod.31
-    ('DESLIGADO',      'Desligado')                        -- S-2299 mtv 07/08/09/25
+    ('DESLIGADO',      'Desligado'),                       -- S-2299 mtv 07/08/09/25
+    ('TRANSFERIDO',    'Transferido (redistribuicao p/ outro orgao)')  -- S-2299 mtv 29/37; fraseamento origem->destino pendente (ADR Secao 2)
 ON CONFLICT (cod_situacao) DO NOTHING;
 
 
@@ -293,8 +294,8 @@ INSERT INTO dom_motivo_deslig (cod_motivo_deslig, nome_motivo, situacao_resultan
     ('25', 'Vacancia (inacumulavel)',    'DESLIGADO', true),
     ('38', 'Aposentadoria voluntaria',   'INATIVO',   true),
     ('39', 'Aposentadoria compulsoria',  'INATIVO',   true),
-    ('29', 'Redistribuicao',             'TRANSFERE', true),
-    ('37', 'Redistribuicao (variante)',  'TRANSFERE', true),
+    ('29', 'Redistribuicao',             'TRANSFERIDO', true),
+    ('37', 'Redistribuicao (variante)',  'TRANSFERIDO', true),
     -- LOCAIS (nao-eSocial; dono=interno; sessao 2026-07-05):
     ('DEMI_OFICIO',     'Demissao de oficio (penalidade disciplinar)',            'DESLIGADO', false),
     ('CASS_APOSENT',    'Cassacao de aposentadoria (2o desligamento sobre Inativo)', 'DESLIGADO', false),
