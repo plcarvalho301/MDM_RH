@@ -1,10 +1,18 @@
 -- =============================================================================
 -- MDM-RH — Schema do golden record (FOTO + EVENTO)
--- versao: v0.12
+-- versao: v0.13
 -- ancora: 3_depara_foto_v0_3.md | 3_catalogo_eventos_v1.yaml (v1.2) | ADR-007 | ADR-008 | ADR-009 | ADR-010 | ADR-011
 -- =============================================================================
 -- HISTORICO DE VERSAO (versao dentro do arquivo; nome sem versao)
---   v0.12 (este) — CALCULADORA COMPLETA: folha planificada + evento PSS novo
+--   v0.13 (este) — VITRINE ODBC DA CALCULADORA SEM jsonb: vw_mv_calculadora_folha e
+--                 vw_mv_calculadora_pss deixam de ser SELECT * e listam coluna nomeada
+--                 SEM `payload`. Motivo: psqlODBC nao expoe tipo jsonb ao Power BI
+--                 (Navegador acusa "coluna sem tipo suportado"). NAO e recorte de
+--                 fronteira — payload cru segue na MV (SELECT direto; e onde moram os
+--                 arrays datados do PSS, insumo de dias-liquidos). E compat de TIPO
+--                 com o conector. Views de Filme seguem SELECT * (titular le o proprio
+--                 payload; corte de tipo se aplica igual se forem pro mesmo conector).
+--   v0.12 — CALCULADORA COMPLETA: folha planificada + evento PSS novo
 --                 (handoff 2026-07-05, catalogo v1.2, ADR-011):
 --                 (1) CONTRIBUICAO_PSS entra em dom_tipo_evento (compensacao) —
 --                     faltava; a folha e a UNICA fonte migrada, o prespec pede as duas.
@@ -710,16 +718,37 @@ CREATE INDEX ix_mv_calculadora_pss_comp ON mv_calculadora_pss(ano_contribuicao, 
 --     resolve no SELECT contra a MV ja materializada pelo REFRESH do Airflow).
 --   - o RECORTE de payload/linha ja foi aplicado NA MV, uma camada abaixo.
 --   - GRANT e RLS continuam desenhados sobre a MV — a view fina herda, nao redefine.
--- SELECT * DE PROPOSITO: como a fronteira ja esta na MV, a view fina e transparente.
---   Alterar coluna na MV NAO exige tocar a view fina (auto-espelha o shape) — sem
---   segunda superficie pra manter em sincronia. Se um dia a view fina precisar
---   cortar algo a mais, isso vira OUTRA fronteira e sai deste bloco (nao e o caso).
+-- SELECT * DE PROPOSITO (regra geral): como a fronteira ja esta na MV, a view fina
+--   e transparente. Alterar coluna na MV NAO exige tocar a view fina (auto-espelha o
+--   shape) — sem segunda superficie pra manter em sincronia.
+-- EXCECAO (v0.13) — as duas views de CALCULADORA NAO sobem `payload` (jsonb):
+--   o driver psqlODBC nao expoe tipo jsonb ao Power BI (Navegador acusa "coluna sem
+--   tipo suportado" e, quando e a unica/ultima, chega a desabilitar a carga). Nao e
+--   fronteira de recorte (o payload cru NAO some do banco — segue na MV, acessivel por
+--   SELECT direto; e ali, no PSS, que moram os arrays datados ferias/lpa/afastamentos/
+--   reclusao, insumo de dias-liquidos do calculo, nao da superficie do painel). E so
+--   compat de TIPO com o conector: o que o Power BI consome sao as colunas planas.
+--   Por isso estas duas listam coluna nomeada (sem payload) em vez de SELECT *. As
+--   views de Filme seguem SELECT * (o titular le o proprio payload; se um dia forem
+--   pro mesmo conector e o jsonb incomodar, aplica-se o mesmo corte de TIPO aqui).
 -- =============================================================================
 
 CREATE VIEW vw_mv_filme_servidor  AS SELECT * FROM mv_filme_servidor;
 CREATE VIEW vw_mv_filme_gestor    AS SELECT * FROM mv_filme_gestor;
-CREATE VIEW vw_mv_calculadora_folha AS SELECT * FROM mv_calculadora_folha;
-CREATE VIEW vw_mv_calculadora_pss   AS SELECT * FROM mv_calculadora_pss;
+-- calculadora: coluna nomeada SEM payload (jsonb nao vai pro ODBC/Power BI — ver acima)
+CREATE VIEW vw_mv_calculadora_folha AS
+SELECT id_evento, matricula_funcional, cpf, cod_tipo_evento, data_evento,
+       mes_competencia, mes_pagamento, tipo_fechamento,
+       cod_rubrica, nome_rubrica, valor_rubrica, indicador_rd, numero_seq,
+       prazo_rubrica, periodo_rubrica, data_ano_mes_rubrica,
+       fonte, grau_confianca
+FROM mv_calculadora_folha;
+CREATE VIEW vw_mv_calculadora_pss AS
+SELECT id_evento, matricula_funcional, cpf, cod_tipo_evento, data_evento,
+       gr_matricula, ano_contribuicao, mes_contribuicao, indice_reajuste,
+       pss_apurado, pss_informado, remuneracao_pss, remuneracao_pss_ajustada,
+       fonte, grau_confianca
+FROM mv_calculadora_pss;
 
 -- ── Filme AMIGAVEL (v0.10) ──────────────────────────────────────────────────
 -- View regular (o ODBC ENXERGA, ao contrario da MV) sobre o Filme, com os codigos
