@@ -123,16 +123,16 @@ ON CONFLICT (cod_classe_transicao) DO NOTHING;
 --   catalogo (informativo). Aqui gravamos o que a tabela comporta.
 -- =============================================================================
 INSERT INTO dom_tipo_evento
-    (cod_tipo_evento, cod_sub_dominio, cod_classe_transicao, codigo_esocial, ativo) VALUES
-    ('PROVIMENTO',       'vinculos',        'INICIO',  'S-2200', true),
-    ('ALTERACAO_FUNCAO', 'vinculos',        'ALTERA',  'S-2206', true),
-    ('REMOCAO',          'vinculos',        'ALTERA',  'S-2206', true),
-    ('PROGRESSAO',       'vinculos',        'ALTERA',  NULL,     false),  -- gate: sem leiaute, aguarda RH
-    ('AFASTAMENTO',      'intercorrencias', 'AFASTA',  'S-2230', true),
-    ('CESSAO',           'vinculos',        'CEDE',    'S-2231', true),
-    ('RETORNO_VINCULO',  'vinculos',        'RETOMA',  'S-2298', true),
-    ('DESLIGAMENTO',     'vinculos',        'ENCERRA', 'S-2299', true),
-    ('FECHAMENTO_FOLHA', 'compensacao',     NULL,      NULL,     true)   -- aditivo, sem classe_transicao
+    (cod_tipo_evento, nome, cod_sub_dominio, cod_classe_transicao, codigo_esocial, ativo) VALUES
+    ('PROVIMENTO',       'Provimento / Admissão',  'vinculos',        'INICIO',  'S-2200', true),
+    ('ALTERACAO_FUNCAO', 'Alteração de função',    'vinculos',        'ALTERA',  'S-2206', true),
+    ('REMOCAO',          'Remoção',                'vinculos',        'ALTERA',  'S-2206', true),
+    ('PROGRESSAO',       'Progressão funcional',   'vinculos',        'ALTERA',  NULL,     false),  -- gate: sem leiaute, aguarda RH
+    ('AFASTAMENTO',      'Afastamento',            'intercorrencias', 'AFASTA',  'S-2230', true),
+    ('CESSAO',           'Cessão',                 'vinculos',        'CEDE',    'S-2231', true),
+    ('RETORNO_VINCULO',  'Retorno de vínculo',     'vinculos',        'RETOMA',  'S-2298', true),
+    ('DESLIGAMENTO',     'Desligamento',           'vinculos',        'ENCERRA', 'S-2299', true),
+    ('FECHAMENTO_FOLHA', 'Fechamento de folha',    'compensacao',     NULL,      NULL,     true)   -- aditivo, sem classe_transicao
 ON CONFLICT (cod_tipo_evento) DO NOTHING;
 
 

@@ -1,10 +1,20 @@
 -- =============================================================================
 -- MDM-RH — Schema do golden record (FOTO + EVENTO)
--- versao: v0.9
+-- versao: v0.10
 -- ancora: 3_depara_foto_v0_3.md | 3_catalogo_eventos_v1.yaml (v1.1) | ADR-007 | ADR-008 | ADR-009
 -- =============================================================================
 -- HISTORICO DE VERSAO (versao dentro do arquivo; nome sem versao)
---   v0.9 (este) — PLANIFICACAO DE CHAVES DE PAYLOAD NAS MVs DE FILME + GESTOR VE
+--   v0.10 (este) — ROTULOS (nomes amigaveis) p/ o painel parar de mostrar codigo cru:
+--                 (1) dom_tipo_evento ganha coluna `nome` (era a UNICA dimensao sem
+--                     rotulo — o Filme mostrava o codigo cru do tipo).
+--                 (2) vw_foto enriquecida: nome_unidade_lotacao/exercicio,
+--                     nome_afastamento_vigente, nome_regime, nome_funcao_comissionada
+--                     (LEFT JOIN; codigo permanece na coluna).
+--                 (3) vw_filme_servidor / vw_filme_gestor: views REGULARES (ODBC ve)
+--                     sobre as MVs com os codigos resolvidos em nome — ponto de
+--                     conexao do painel que le plano, sem montar relacao no PBI.
+--                 Frase amigavel (descritor/assembler) fica p/ o refinamento de UX.
+--   v0.9 — PLANIFICACAO DE CHAVES DE PAYLOAD NAS MVs DE FILME + GESTOR VE
 --                 INTERCORRENCIAS (sessao 2026-07-05, handoff PBI rodada 1):
 --                 (1) O painel nao relaciona chave embutida em JSONB. Chaves que o
 --                     Power BI precisa como FILTRO (relacao com dimensao) sao
@@ -166,6 +176,7 @@ CREATE TABLE dom_classe_transicao (
 
 CREATE TABLE dom_tipo_evento (
     cod_tipo_evento      text PRIMARY KEY,      -- ADMISSAO, AFASTAMENTO, CESSAO, FECHAMENTO_FOLHA...
+    nome                 text NOT NULL,         -- rotulo humano p/ o painel (o Filme mostra ISTO, nao o codigo)
     cod_sub_dominio      text NOT NULL REFERENCES dom_sub_dominio(cod_sub_dominio),
     cod_classe_transicao text REFERENCES dom_classe_transicao(cod_classe_transicao), -- nulo se aditivo
     codigo_esocial       text,                  -- S-2200, S-2230... (nulo se sem leiaute)
@@ -434,6 +445,10 @@ GROUP BY fonte, motivo;
 -- View comum sobre a FOTO. `afastado` e booleano DERIVADO (painel nao mostra
 -- codigo cru). A coluna cod_afastamento_vigente PERMANECE na FOTO (face-foto;
 -- serie datada vive no evento AFASTAMENTO) — ADR-007.
+-- v0.10: + ROTULOS resolvidos (LEFT JOIN nas dimensoes). O painel le nome, nao
+--   codigo; LEFT JOIN p/ orfao/nulo nao sumir a linha (orfao => nome_unidade nulo,
+--   que E o sinal do KR 2.1). Codigo permanece na coluna (relacao no PBI ainda
+--   possivel); o nome vem pronto p/ quem nao quer montar relacao.
 CREATE VIEW vw_foto AS
 SELECT s.id_vinculo,
        s.matricula_funcional,
@@ -445,8 +460,19 @@ SELECT s.id_vinculo,
        s.cod_unidade_lotacao, s.cod_unidade_exercicio, s.origem_unidade,
        s.situacao_funcional, s.regime_juridico, s.data_exercicio_no_orgao,
        (s.cod_afastamento_vigente IS NOT NULL) AS afastado,   -- booleano de exposicao
-       s.data_referencia
-FROM servidor s;
+       s.data_referencia,
+       -- rotulos humanos (o que o painel exibe):
+       ul.nome_unidade      AS nome_unidade_lotacao,
+       ue.nome_unidade      AS nome_unidade_exercicio,
+       af.nome_afastamento  AS nome_afastamento_vigente,
+       rj.nome              AS nome_regime,
+       fc.nome              AS nome_funcao_comissionada
+FROM servidor s
+LEFT JOIN dom_unidade_eorg    ul ON ul.cod_unidade     = s.cod_unidade_lotacao
+LEFT JOIN dom_unidade_eorg    ue ON ue.cod_unidade     = s.cod_unidade_exercicio
+LEFT JOIN dom_afastamento     af ON af.cod_afastamento = s.cod_afastamento_vigente
+LEFT JOIN dom_regime_juridico rj ON rj.cod             = s.regime_juridico
+LEFT JOIN dom_funcao          fc ON fc.cod             = s.funcao_comissionada;
 
 -- ── Lente Estrategica ───────────────────────────────────────────────────────
 -- View comum SOBRE A FOTO (agrega numeros sobre o que a Foto ja expoe). Mesma
@@ -597,3 +623,33 @@ CREATE INDEX ix_mv_calculadora_mat ON mv_calculadora(matricula_funcional, data_e
 CREATE VIEW vw_mv_filme_servidor AS SELECT * FROM mv_filme_servidor;
 CREATE VIEW vw_mv_filme_gestor   AS SELECT * FROM mv_filme_gestor;
 CREATE VIEW vw_mv_calculadora    AS SELECT * FROM mv_calculadora;
+
+-- ── Filme AMIGAVEL (v0.10) ──────────────────────────────────────────────────
+-- View regular (o ODBC ENXERGA, ao contrario da MV) sobre o Filme, com os codigos
+-- ja resolvidos em NOME. E o ponto de conexao do painel que quer ler PLANO, sem
+-- montar relacao no Power BI. Codigo continua na coluna (quem quiser relacao, tem);
+-- o nome vem pronto ao lado. Principio v0.9 preservado: nome mora na dimensao —
+-- aqui so o JOIN de apresentacao. Traducao muda por UPDATE na dimensao, sem tocar MV.
+CREATE VIEW vw_filme_servidor AS
+SELECT f.*,
+       te.nome              AS nome_tipo_evento,
+       sd.descricao         AS nome_sub_dominio,
+       af.nome_afastamento  AS nome_afastamento,
+       md.nome_motivo       AS nome_motivo_deslig
+FROM mv_filme_servidor f
+LEFT JOIN dom_tipo_evento  te ON te.cod_tipo_evento   = f.cod_tipo_evento
+LEFT JOIN dom_sub_dominio  sd ON sd.cod_sub_dominio   = f.cod_sub_dominio
+LEFT JOIN dom_afastamento  af ON af.cod_afastamento   = f.cod_afastamento
+LEFT JOIN dom_motivo_deslig md ON md.cod_motivo_deslig = f.cod_motivo_deslig;
+
+CREATE VIEW vw_filme_gestor AS
+SELECT g.*,
+       te.nome              AS nome_tipo_evento,
+       sd.descricao         AS nome_sub_dominio,
+       af.nome_afastamento  AS nome_afastamento,
+       md.nome_motivo       AS nome_motivo_deslig
+FROM mv_filme_gestor g
+LEFT JOIN dom_tipo_evento  te ON te.cod_tipo_evento   = g.cod_tipo_evento
+LEFT JOIN dom_sub_dominio  sd ON sd.cod_sub_dominio   = g.cod_sub_dominio
+LEFT JOIN dom_afastamento  af ON af.cod_afastamento   = g.cod_afastamento
+LEFT JOIN dom_motivo_deslig md ON md.cod_motivo_deslig = g.cod_motivo_deslig;
