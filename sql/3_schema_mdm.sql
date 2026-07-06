@@ -1,10 +1,41 @@
 -- =============================================================================
 -- MDM-RH — Schema do golden record (FOTO + EVENTO)
--- versao: v0.14
--- ancora: 3_depara_foto_v0_3.md | 3_catalogo_eventos_v1.yaml (v1.3) | ADR-007 | ADR-008 | ADR-009 | ADR-010 | ADR-011
+-- versao: v0.15
+-- ancora: 3_depara_foto_v0_3.md | 3_catalogo_eventos_v1.yaml (v1.3) | ADR-007 | ADR-008 | ADR-009 | ADR-010 | ADR-011 | ADR-012
 -- =============================================================================
 -- HISTORICO DE VERSAO (versao dentro do arquivo; nome sem versao)
---   v0.14 (este) — 6o ESTADO DE VINCULO: TRANSFERIDO (redistribuicao, motivos 29/37).
+--   v0.15 (este) — CAMADA DE VITRINE POR PAINEL (ADR-012, handoff vitrine PBI
+--                 2026-07-05, spec_vitrine_pbi_v0_1 N1-N11): uma view
+--                 vw_painel_<superficie> por superficie de tela, com o shape EXATO
+--                 do painel — rotulo humano, booleano 0/1, percentual, cor, frase,
+--                 sinal e eixo chegam prontos do SQL. O Power BI nao calcula, nao
+--                 relaciona, nao traduz, nao formata: zero DAX, zero relacao, zero
+--                 Power Query, zero jsonb atravessando o ODBC (N7).
+--                 (1) dom_situacao_vinculo ganha cor_fundo/cor_fonte (N5) — paleta
+--                     e DADO na dimensao (principio v0.11); seed_dominios semeia;
+--                     migracao em banco vivo = ALTER + UPDATE (handoff §1).
+--                 (2) vw_painel_consulta — FRONTEIRA NOVA (excecao unica, ADR-012):
+--                     GRANT largo, recorte de coluna MAIS ESTREITO que vw_foto (sem
+--                     situacao/afastado/funcao — dado de gestao que o publico nao
+--                     recebe). Entra no mapa da ADR-007. Telefone/ramal PENDENTE
+--                     (coluna nao existe na FOTO; entra quando subir).
+--                 (3) vw_painel_foto, vw_painel_lente, vw_painel_filme_servidor,
+--                     vw_painel_filme_gestor — VITRINES: herdam a fronteira/GRANT
+--                     do objeto-base (nao redefinem). frase_evento = escada de
+--                     fallback do descritor (2_descritores_eventos_v0_1, nivel 2 —
+--                     template por tipo + dom_*.nome), NUNCA frase autorada aqui;
+--                     nivel 3 (nome_exibicao) NAO entra nesta leva (ADR-012).
+--                     Casts de payload guardados por regex (payload sujo nao
+--                     derruba a view); jsonb nunca vira coluna de vitrine.
+--                 (4) vw_mv_calculadora_folha/_pss ganham competencia_data (N9) e
+--                     valor_assinado (N10) — colunas ANEXADAS NO FIM: CREATE OR
+--                     REPLACE VIEW so anexa, nao reordena nem remove coluna.
+--                 (5) vw_painel_calc_dias (dias liquidos) NAO criada — QUARENTENA
+--                     (ADR-012 Pendencias): sobreposicao de afastamento soma em
+--                     dobro; 'parcial' sem regra de desconto. Esboco em comentario.
+--                 Materializacao ZERO: todas views comuns sobre objeto ja
+--                 materializado — nenhum REFRESH novo (relogio Airflow intacto).
+--   v0.14 — 6o ESTADO DE VINCULO: TRANSFERIDO (redistribuicao, motivos 29/37).
 --                 dom_situacao_vinculo ganha 'TRANSFERIDO'; ck_motivo_resultado passa a
 --                 aceitar TRANSFERIDO (era TRANSFERE — valor ORFAO: nao existia em
 --                 dom_situacao_vinculo, violaria fk_situacao no dia em que o replay
@@ -180,7 +211,12 @@
 
 CREATE TABLE dom_situacao_vinculo (
     cod_situacao   text PRIMARY KEY,
-    nome_situacao  text NOT NULL
+    nome_situacao  text NOT NULL,
+    -- v0.15 (ADR-012, N5): cor do estado e DADO da dimensao, nao regra por painel.
+    -- PBI formata "por valor de campo" (configura uma vez); RH muda cor por UPDATE
+    -- sem deploy (principio v0.11). Paleta semeada em seed_dominios.sql.
+    cor_fundo      text,             -- hex '#RRGGBB'
+    cor_fonte      text              -- hex '#RRGGBB'
 );
 
 CREATE TABLE dom_afastamento (
@@ -746,18 +782,25 @@ CREATE INDEX ix_mv_calculadora_pss_comp ON mv_calculadora_pss(ano_contribuicao, 
 CREATE VIEW vw_mv_filme_servidor  AS SELECT * FROM mv_filme_servidor;
 CREATE VIEW vw_mv_filme_gestor    AS SELECT * FROM mv_filme_gestor;
 -- calculadora: coluna nomeada SEM payload (jsonb nao vai pro ODBC/Power BI — ver acima)
+-- v0.15 (ADR-012): + competencia_data (N9) e valor_assinado (N10), ANEXADAS NO FIM.
+-- CREATE OR REPLACE VIEW no Postgres so ANEXA coluna no fim — nao reordena nem
+-- remove (senao ERROR: cannot change name of view column). Ordem v0.13 preservada.
 CREATE VIEW vw_mv_calculadora_folha AS
 SELECT id_evento, matricula_funcional, cpf, cod_tipo_evento, data_evento,
        mes_competencia, mes_pagamento, tipo_fechamento,
        cod_rubrica, nome_rubrica, valor_rubrica, indicador_rd, numero_seq,
        prazo_rubrica, periodo_rubrica, data_ano_mes_rubrica,
-       fonte, grau_confianca
+       fonte, grau_confianca,
+       to_date(mes_competencia,'YYYYMM')                  AS competencia_data,   -- N9 (anexada)
+       CASE WHEN indicador_rd = 'D' THEN -valor_rubrica
+            ELSE valor_rubrica END                        AS valor_assinado      -- N10 (anexada)
 FROM mv_calculadora_folha;
 CREATE VIEW vw_mv_calculadora_pss AS
 SELECT id_evento, matricula_funcional, cpf, cod_tipo_evento, data_evento,
        gr_matricula, ano_contribuicao, mes_contribuicao, indice_reajuste,
        pss_apurado, pss_informado, remuneracao_pss, remuneracao_pss_ajustada,
-       fonte, grau_confianca
+       fonte, grau_confianca,
+       make_date(ano_contribuicao, mes_contribuicao, 1)   AS competencia_data    -- N9 (anexada)
 FROM mv_calculadora_pss;
 
 -- ── Filme AMIGAVEL (v0.10) ──────────────────────────────────────────────────
@@ -789,3 +832,262 @@ LEFT JOIN dom_tipo_evento  te ON te.cod_tipo_evento   = g.cod_tipo_evento
 LEFT JOIN dom_sub_dominio  sd ON sd.cod_sub_dominio   = g.cod_sub_dominio
 LEFT JOIN dom_afastamento  af ON af.cod_afastamento   = g.cod_afastamento
 LEFT JOIN dom_motivo_deslig md ON md.cod_motivo_deslig = g.cod_motivo_deslig;
+
+
+-- =============================================================================
+-- CAMADA DE VITRINE POR PAINEL (v0.15, ADR-012) — o shape EXATO de cada tela.
+-- -----------------------------------------------------------------------------
+-- Entre o objeto de fronteira (ADR-007) e o Power BI: uma view vw_painel_<superficie>
+-- por superficie, com cada campo que a tela usa ja PRONTO (rotulo, 0/1, %, cor,
+-- frase, sinal, eixo). O PBI marca campo -> vira visual -> posiciona. Zero DAX,
+-- zero relacao no modelo, zero Power Query, zero jsonb no ODBC (N7). Agregado de
+-- time = agregacao implicita (SUM/AVG) sobre colunas 0/1 do MESMO objeto.
+-- A vitrine NAO e fronteira: resolve no SELECT contra objeto ja materializado e
+-- HERDA o GRANT dele (Postgres nao propaga GRANT — cada view nova precisa do seu
+-- GRANT SELECT ao role que ja le o objeto-base; ver bloco GRANT no fim da secao).
+-- Materializacao ZERO: views comuns, nenhum REFRESH novo.
+-- EXCECAO: vw_painel_consulta E fronteira nova (GRANT largo, recorte de coluna
+-- mais estreito que vw_foto) — entra no mapa da ADR-007, GRANT proprio.
+-- frase_evento = escada de fallback do descritor (2_descritores_eventos_v0_1),
+-- NIVEL 2 (template por tipo + dom_*.nome). Nivel 3 (dom_*.nome_exibicao,
+-- RH-editavel) NAO entra nesta leva — entra depois por CREATE OR REPLACE, que
+-- re-frase o passado inteiro de graca. Datas na frase: intervalo = MM/AAAA,
+-- pontual = DD/MM/AAAA (regra do descritor). Valor financeiro NUNCA na frase.
+-- Chaves de payload: atributos_eventos_MDM-RH.xlsx, aba "Atributos por evento"
+-- (validada pelo PM, 2026-07-05).
+-- =============================================================================
+
+-- ── Consulta Cadastral — FRONTEIRA NOVA (nao e vitrine; ADR-012 excecao) ─────
+-- Publica (todo o orgao): GRANT largo, coluna estreita. SEM situacao/afastado/
+-- funcao — dado de gestao que o publico nao recebe. Orfao de unidade aparece
+-- como rotulo de fallback, nao some (KR 2.1: o buraco e visivel).
+CREATE VIEW vw_painel_consulta AS
+SELECT s.matricula_funcional,
+       s.nome,
+       s.cargo,
+       COALESCE(u.nome_unidade, '(unidade não identificada)') AS rotulo_unidade_lotacao,  -- N4
+       s.cod_unidade_lotacao,                                                             -- cru, KR 2.1
+       -- telefone/ramal: PENDENTE — coluna ainda nao existe na FOTO. Entra quando subir.
+       s.data_referencia                                                                  -- N8
+FROM servidor s
+LEFT JOIN dom_unidade_eorg u ON u.cod_unidade = s.cod_unidade_lotacao;
+
+-- ── Foto de gestao (ficha + consolidado do time) ────────────────────────────
+-- Serve as DUAS camadas da pagina: ficha (linha selecionada) e cards de agregado
+-- (agregacao implicita sobre *_num: headcount = COUNT(matricula_funcional);
+-- % afastados = AVG(afastado_num); % com funcao = AVG(com_funcao_num) — zero DAX).
+-- Sem vw_lente, sem relacao. cpf/data_nascimento EXCLUIDOS (decisao PM,
+-- reversivel em 1 linha).
+CREATE VIEW vw_painel_foto AS
+SELECT f.matricula_funcional,
+       f.nome,
+       f.cargo, f.classe, f.padrao, f.sigla_nivel_cargo,
+       f.funcao_comissionada,
+       (f.funcao_comissionada IS NOT NULL)::int                     AS com_funcao_num,     -- N2
+       CASE WHEN f.funcao_comissionada IS NOT NULL
+            THEN 'Sim' ELSE 'Não' END                              AS com_funcao_rotulo,
+       COALESCE(f.nome_unidade_lotacao,
+                '(unidade não identificada)')                      AS rotulo_unidade_lotacao,   -- N4
+       COALESCE(f.nome_unidade_exercicio, f.nome_unidade_lotacao,
+                '(unidade não identificada)')                      AS rotulo_unidade_exercicio,
+       f.cod_unidade_lotacao,                                                                -- cru, KR 2.1
+       f.situacao_funcional,
+       sv.nome_situacao,                                                                     -- N1
+       sv.cor_fundo AS cor_situacao_fundo,                                                   -- N5
+       sv.cor_fonte AS cor_situacao_fonte,
+       f.afastado::int                                             AS afastado_num,          -- N2/N3
+       CASE WHEN f.afastado THEN 'Sim' ELSE 'Não' END              AS afastado_rotulo,
+       f.nome_afastamento_vigente,
+       f.nome_regime,
+       f.data_exercicio_no_orgao,
+       f.data_referencia                                                                     -- N8
+FROM vw_foto f
+LEFT JOIN dom_situacao_vinculo sv ON sv.cod_situacao = f.situacao_funcional;
+
+-- ── Lente Estrategica (grao uorg) ───────────────────────────────────────────
+CREATE OR REPLACE VIEW vw_painel_lente AS
+SELECT l.cod_unidade_lotacao,
+       COALESCE(l.nome_unidade_lotacao,
+                '(unidade não identificada)')                       AS rotulo_unidade,       -- N4
+       l.headcount,
+       l.afastados,
+       l.com_funcao,
+       ROUND(100.0 * l.afastados  / NULLIF(l.headcount,0), 1)       AS pct_afastados,         -- N3
+       ROUND(100.0 * l.com_funcao / NULLIF(l.headcount,0), 1)       AS pct_com_funcao,
+       (SELECT max(data_referencia) FROM servidor)                  AS data_referencia        -- N8
+FROM vw_lente l;
+
+-- ── Filme do Servidor ───────────────────────────────────────────────────────
+-- frase_evento = escada do descritor (nivel 2) sobre as chaves validadas.
+-- Casts ::int do payload GUARDADOS POR REGEX (payload sujo nao derruba a view).
+-- JSONB NAO SAI (N7): o payload e lido no CASE, nunca exposto como coluna.
+-- Tela: tabela cronologica desc (data_evento, frase_evento, rotulo_vigencia) +
+-- slicer eixo DEFAULT=biografia + slicer nome_sub_dominio. RLS por matricula e
+-- camada de acesso, fora daqui.
+CREATE VIEW vw_painel_filme_servidor AS
+SELECT f.matricula_funcional,
+       s.nome,
+       f.data_evento,
+       te.nome                                            AS nome_tipo_evento,
+       sd.descricao                                       AS nome_sub_dominio,
+       CASE WHEN f.cod_sub_dominio = 'compensacao'
+            THEN 'financeiro' ELSE 'biografia' END        AS eixo,                -- N11 (filtro default = biografia)
+       f.data_inicio, f.data_fim,
+       f.intervalo_vigente::int                           AS vigente_num,         -- N2
+       CASE WHEN f.data_fim IS NULL AND f.intervalo_vigente THEN 'em aberto'
+            WHEN f.intervalo_vigente                       THEN 'vigente'
+            ELSE 'substituído' END                        AS rotulo_vigencia,
+       af.nome_afastamento,                                                        -- rotulo cru p/ slicer
+       md.nome_motivo                                     AS nome_motivo_deslig,
+       -- ── frase_evento: escada do descritor, nivel 2 (template + dom.nome) ──
+       --    nivel 3 (COALESCE(dom.nome_exibicao, ...)) entra depois por CREATE OR REPLACE.
+       --    Datas: intervalo=MM/AAAA, pontual=DD/MM/AAAA (regra do descritor). Valor NUNCA na frase.
+       CASE f.cod_tipo_evento
+         WHEN 'PROVIMENTO' THEN
+              CASE WHEN dc.nome IS NOT NULL THEN 'Ingresso — ' || dc.nome
+                   ELSE 'Ingresso no órgão' END
+         WHEN 'ALTERACAO_FUNCAO' THEN
+              CASE f.payload->>'tipo_movimento'
+                WHEN 'designacao'      THEN 'Designação'
+                WHEN 'dispensa_pedido' THEN 'Dispensa (a pedido) de função'
+                WHEN 'dispensa_oficio' THEN 'Dispensa (de ofício) de função'
+                WHEN 'exoneracao'      THEN 'Exoneração de função'
+                ELSE 'Movimentação de função'
+              END
+              || COALESCE(' — ' || COALESCE(f.payload->>'nome_funcao', df.nome, f.payload->>'cod_funcao'), '')
+         WHEN 'REMOCAO' THEN
+              'Remoção: '
+              || COALESCE(uo.nome_unidade, 'unidade ' || (f.payload->>'cod_unidade_origem'))
+              || ' → '
+              || COALESCE(ud.nome_unidade, 'unidade ' || (f.payload->>'cod_unidade_destino'))
+         WHEN 'PROGRESSAO' THEN   -- tipo GATED (ativo=false, regras de carreira RH); frase provisoria
+              CASE f.payload->>'tipo_progressao' WHEN 'promocao' THEN 'Promoção: ' ELSE 'Progressão: ' END
+              || COALESCE(f.payload->>'classe_origem','?') || '/' || COALESCE(f.payload->>'padrao_origem','?')
+              || ' → '
+              || COALESCE(f.payload->>'classe_destino','?') || '/' || COALESCE(f.payload->>'padrao_destino','?')
+         WHEN 'AFASTAMENTO' THEN
+              COALESCE(af.nome_afastamento, 'Afastamento')
+              || ' — ' || to_char(f.data_inicio, 'MM/YYYY')
+              || ' a ' || COALESCE(to_char(f.data_fim, 'MM/YYYY'), 'em curso')
+         WHEN 'CESSAO' THEN
+              'Cessão'
+              || COALESCE(' — ' || (f.payload->>'orgao_cessionario'), '')
+              || ' — ' || to_char(f.data_inicio, 'MM/YYYY')
+              || COALESCE(' a ' || to_char(f.data_fim, 'MM/YYYY'), ' (em curso)')
+         WHEN 'RETORNO_VINCULO' THEN
+              CASE f.payload->>'tipo_retorno'
+                WHEN 'reintegracao' THEN 'Reintegração'
+                WHEN 'reversao'     THEN 'Reversão'
+                WHEN 'reconducao'   THEN 'Recondução'
+                ELSE 'Retorno ao serviço'
+              END
+         WHEN 'DESLIGAMENTO' THEN
+              COALESCE(md.nome_motivo, 'Desligamento')
+              || ' em ' || to_char(f.data_desligamento, 'DD/MM/YYYY')
+         WHEN 'FECHAMENTO_FOLHA' THEN
+              'Folha ' || to_char(to_date(f.payload->>'mes_competencia','YYYYMM'), 'MM/YYYY')
+              || CASE WHEN f.payload->>'tipo_fechamento' = 'suplementar' THEN ' (suplementar)' ELSE '' END
+         WHEN 'CONTRIBUICAO_PSS' THEN
+              'Contribuição PSS ' || lpad(f.payload->>'mes_contribuicao', 2, '0') || '/' || (f.payload->>'ano_contribuicao')
+         ELSE  -- nivel 1: tipo novo ou payload pre-arqueologia. JSON cru NUNCA.
+              te.nome || ' — ' || to_char(f.data_evento, 'DD/MM/YYYY')
+       END                                                AS frase_evento,
+       f.fonte, f.grau_confianca
+FROM mv_filme_servidor f
+JOIN      dom_tipo_evento   te ON te.cod_tipo_evento   = f.cod_tipo_evento
+LEFT JOIN dom_sub_dominio   sd ON sd.cod_sub_dominio   = f.cod_sub_dominio
+LEFT JOIN dom_afastamento   af ON af.cod_afastamento   = f.cod_afastamento
+LEFT JOIN dom_motivo_deslig md ON md.cod_motivo_deslig = f.cod_motivo_deslig
+LEFT JOIN dom_cargo         dc ON dc.cod = (f.payload->>'cargo_inicial')
+LEFT JOIN dom_funcao        df ON df.cod = (f.payload->>'cod_funcao')
+LEFT JOIN dom_unidade_eorg  uo ON uo.cod_unidade =
+              (CASE WHEN f.payload->>'cod_unidade_origem'  ~ '^\d+$' THEN (f.payload->>'cod_unidade_origem')::int  END)
+LEFT JOIN dom_unidade_eorg  ud ON ud.cod_unidade =
+              (CASE WHEN f.payload->>'cod_unidade_destino' ~ '^\d+$' THEN (f.payload->>'cod_unidade_destino')::int END)
+LEFT JOIN servidor s ON s.matricula_funcional = f.matricula_funcional;
+
+-- ── Filme do Gestor ─────────────────────────────────────────────────────────
+-- SEM payload (ADR-010) -> frase usa SO coluna plana + dimensao. Gestor VE a
+-- categoria S-2230 do afastamento (decisao travada, ADR-010 + aba de fronteira
+-- validada). SEM flag de sigilo nesta leva. compensacao nao entra no WHERE da
+-- MV -> eixo seria constante, nao exposto.
+-- LIMITACAO POR CONSTRUCAO: eventos de vinculo (PROVIMENTO/ALTERACAO_FUNCAO/
+-- REMOCAO/PROGRESSAO/RETORNO) caem no fallback nivel 1 (tipo em data) — o
+-- detalhe mora no payload que a MV do gestor nao carrega. Enriquecer = coluna
+-- nomeada na allowlist da MV (decisao de exposicao ADR-010, fora da vitrine).
+CREATE VIEW vw_painel_filme_gestor AS
+SELECT g.matricula_funcional,
+       s.nome,
+       g.data_evento,
+       te.nome                                            AS nome_tipo_evento,
+       sd.descricao                                       AS nome_sub_dominio,
+       g.data_inicio, g.data_fim,
+       g.intervalo_vigente::int                           AS vigente_num,
+       CASE WHEN g.data_fim IS NULL AND g.intervalo_vigente THEN 'em aberto'
+            WHEN g.intervalo_vigente                       THEN 'vigente'
+            ELSE 'substituído' END                        AS rotulo_vigencia,
+       CASE g.cod_tipo_evento
+         WHEN 'AFASTAMENTO' THEN
+              COALESCE(af.nome_afastamento, 'Afastamento')
+              || ' — ' || to_char(g.data_inicio, 'MM/YYYY')
+              || ' a ' || COALESCE(to_char(g.data_fim, 'MM/YYYY'), 'em curso')
+         WHEN 'DESLIGAMENTO' THEN
+              COALESCE(md.nome_motivo, 'Desligamento')
+              || ' em ' || to_char(g.data_desligamento, 'DD/MM/YYYY')
+         WHEN 'CESSAO' THEN
+              'Cessão — ' || to_char(g.data_inicio, 'MM/YYYY')
+              || COALESCE(' a ' || to_char(g.data_fim, 'MM/YYYY'), ' (em curso)')
+         ELSE  -- vinculos sem payload no Gestor (ADR-010): nivel 1
+              te.nome || ' em ' || to_char(g.data_evento, 'DD/MM/YYYY')
+       END                                                AS frase_evento,
+       g.fonte
+FROM mv_filme_gestor g
+JOIN      dom_tipo_evento   te ON te.cod_tipo_evento   = g.cod_tipo_evento
+LEFT JOIN dom_sub_dominio   sd ON sd.cod_sub_dominio   = g.cod_sub_dominio
+LEFT JOIN dom_afastamento   af ON af.cod_afastamento   = g.cod_afastamento
+LEFT JOIN dom_motivo_deslig md ON md.cod_motivo_deslig = g.cod_motivo_deslig
+LEFT JOIN servidor s ON s.matricula_funcional = g.matricula_funcional;
+-- Foto do Gestor (consolidado do time): le vw_painel_foto filtrada por uorg
+-- (agregacao implicita) — nao precisa de objeto proprio.
+
+-- ── vw_painel_calc_dias — NAO CRIAR (QUARENTENA, ADR-012 Pendencias) ────────
+-- Dias liquidos NAO estampa ate fechar (a) e (b) — o numero sai plausivel e
+-- ERRADO. Esboco fichado p/ nao perder; NAO executar:
+--  (a) afastamentos SOBREPOSTOS somam em dobro -> precisa merge de intervalos
+--      (gaps-and-islands) antes do SUM.
+--  (b) conta_efetivo_exercicio='parcial' sem regra de desconto (esboco ignora
+--      = chute conservador, nao regra).
+--  (c) proveniencia multi-fonte do afastamento (4.1x4.21x4.22) = ADR aberta.
+-- CREATE VIEW vw_painel_calc_dias AS
+-- WITH afast_nao_conta AS (
+--     SELECT f.matricula_funcional,
+--            SUM((COALESCE(f.data_fim, CURRENT_DATE) - f.data_inicio) + 1) AS dias_descontados
+--     FROM mv_filme_servidor f
+--     JOIN dom_afastamento a ON a.cod_afastamento = f.cod_afastamento
+--     WHERE f.cod_tipo_evento = 'AFASTAMENTO'
+--       AND f.intervalo_vigente
+--       AND a.conta_efetivo_exercicio = 'nao'
+--     GROUP BY 1)
+-- SELECT s.matricula_funcional, s.nome, s.data_exercicio_no_orgao,
+--        (CURRENT_DATE - s.data_exercicio_no_orgao) + 1 AS dias_brutos,
+--        COALESCE(an.dias_descontados, 0)               AS dias_descontados,
+--        (CURRENT_DATE - s.data_exercicio_no_orgao) + 1 - COALESCE(an.dias_descontados,0) AS dias_liquidos,
+--        s.data_referencia
+-- FROM servidor s LEFT JOIN afast_nao_conta an USING (matricula_funcional);
+-- NB extra: CURRENT_DATE anda durante o dia; quando sair da quarentena, ancorar
+--          em data_referencia (D-1), senao dias_brutos diverge do proprio carimbo.
+
+-- ── GRANT da leva (aterrissar por role real do ambiente) ────────────────────
+-- Vitrines HERDAM a fronteira do objeto-base (mesmo recorte), mas o Postgres nao
+-- propaga GRANT — cada view nova precisa do seu GRANT SELECT ao(s) role(s) que ja
+-- leem o objeto-base. vw_painel_consulta e FRONTEIRA NOVA (GRANT proprio, largo).
+-- Roles ILUSTRATIVOS — substituir pelos reais (Code/PM aterra):
+--   GRANT SELECT ON vw_painel_foto, vw_painel_lente, vw_painel_filme_servidor
+--         TO role_gestao;
+--   GRANT SELECT ON vw_painel_filme_gestor
+--         TO role_gestor;
+--   GRANT SELECT ON vw_painel_consulta                    -- FRONTEIRA NOVA (largo)
+--         TO role_publico_institucional;
+--   (Calculadora: vw_mv_calculadora_* ja tem GRANT desde a v0.13; REPLACE nao derruba.)
+-- RLS (Filme-Servidor -> propria matricula; Filme-Gestor -> sub-arvore) e camada
+-- de acesso, desenhada sobre a MV — nao muda aqui.

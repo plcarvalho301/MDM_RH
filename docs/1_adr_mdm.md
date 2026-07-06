@@ -7,7 +7,7 @@ Registro das decisões arquiteturais do MDM-RH. Duas seções:
 
 Convenção: o catálogo (`3_catalogo_eventos_v1.yaml`) é o **o quê** (schema vivo, muda toda hora). Este arquivo é o **porquê** (decisão, imutável quando numerada). O catálogo referencia a ADR; não repete a justificativa.
 
-Data: 2026-06-23. Última atualização: 2026-07-05 (+ADR-008, +ADR-009, +ADR-010, +ADR-011).
+Data: 2026-06-23. Última atualização: 2026-07-05 (+ADR-008, +ADR-009, +ADR-010, +ADR-011, +ADR-012).
 
 ---
 
@@ -210,6 +210,38 @@ Decisão da mesa de engenharia (Tech Lead). O **payload campo-a-campo** de cada 
 2. **Explodido — `jsonb_to_recordset` no `SELECT` da MV, 1 linha por rubrica.** Escolhida — a coluna `valor_rubrica`/`cod_rubrica`/`indicador_rd` chega pronta, sem transformação no cliente. Custo aceito: o índice único muda de grão (`id_evento` deixa de identificar linha; `numero_seq` preserva a chave dentro do evento, já que o payload garante `numeroSeq` obrigatório) e colunas de competência (`mes_competencia` etc.) repetem por rubrica — denormalização esperada nesse grão, não bug.
 
 **Resultado.** Schema v0.12: `mv_calculadora_folha` (colunas de competência planas + rubrica explodida + `payload` cru; `ux_mv_calculadora_folha(id_evento, numero_seq)`) e `mv_calculadora_pss` (campos apurados do 4.22 planos + `payload` cru, arrays de dias-líquidos só no cru; `ux_mv_calculadora_pss(id_evento)`). Vitrine ODBC (ADR/v0.7) ganha `vw_mv_calculadora_folha` e `vw_mv_calculadora_pss`; `vw_mv_calculadora` (única) é removida — não há dado nela hoje (massa de evento ainda não gerada pra PSS/folha; MVs compilam vazias, mesmo caso já registrado no schema v0.9). Regra geral: **quando um sub-domínio aditivo ganha um segundo tipo de payload incompatível, a MV se divide por tipo — sub-domínio é chave de gaveta do catálogo, não union implícito de shape na projeção.** Decisão do Code (task assignment explícito no handoff), 2026-07-05.
+
+---
+
+## ADR-012 — Camada de vitrine por painel: isomorfismo painel↔objeto, inteligência no SQL, frase pela escada do descritor
+
+**Decisão.** Entre o objeto de fronteira (ADR-007) e o Power BI entra uma **camada de vitrine**: uma view `vw_painel_<superficie>` por superfície de tela, com o **shape exato do painel** — cada campo que a tela usa já chega pronto (rótulo humano, booleano 0/1, percentual, cor, frase, sinal, eixo). O Power BI **não calcula, não relaciona, não traduz, não formata, não filtra por lógica**: marca campo → vira visual → posiciona. Consequência dura: **zero DAX, zero relação no modelo, zero Power Query, zero JSONB atravessando o ODBC** — o agregado do time sai de agregação implícita (`SUM`/`AVG`) sobre colunas `0/1` do **mesmo** objeto, nunca de segunda tabela relacionada.
+
+A vitrine **não é fronteira**: resolve no `SELECT` contra o objeto de fronteira já materializado e **herda o GRANT** dele. Materialização zero — view comum sobre MV existente, **sem REFRESH novo** (o relógio do Airflow não muda). O contrato campo-a-campo (11 regras de normalização N1–N11, cada uma rastreável a uma dor da sessão de construção da Foto no PBI) vive na spec `spec_vitrine_pbi_v0_1.md`; o DDL, no handoff `handoff_vitrine_pbi_v0_1.md` → `3_schema_mdm.sql` v0.15. Esta ADR fixa a **constituição** da camada, não o payload — mesmo recorte de responsabilidade da ADR-007.
+
+**Exceção única — `vw_painel_consulta` É fronteira nova.** A Consulta Cadastral (pública, todo o órgão) tem GRANT largo mas recorte de coluna **mais estreito** que a `vw_foto` (que carrega situação/afastado/função — dado de gestão que o público não recebe). Por ter recorte próprio + GRANT próprio, entra no mapa de objetos da ADR-007 como objeto de fronteira, não como vitrine. É o único objeto novo desta leva que precisa de GRANT explícito.
+
+**Contexto.** A sessão de construção do painel no Power BI produziu uma pilha de retrabalho no front: medida DAX pra traduzir código em rótulo, `DIVIDE()` pra percentual, relação `vw_foto ↔ vw_lente` pra cruzar agregado, formatação condicional por regra (6 estados × N painéis), e troca de campo errado (`exercicio` × `lotacao`) que derrubou uma tabela por três rodadas. Toda essa inteligência é frágil no BI e pertence ao banco — o mesmo princípio que a ADR-007 já cravou pro recorte de payload ("corte no DDL, não no BI") estendido a rótulo, cor, percentual e frase. A cor mora na **dimensão** (`dom_situacao_vinculo` ganha `cor_fundo`/`cor_fonte` hex; PBI usa "por valor de campo", configura uma vez; RH muda cor por `UPDATE`, princípio v0.11), não em regra por painel.
+
+**A frase do evento consome o descritor, não o reescreve.** A `frase_evento` das vitrines de Filme é a **escada de fallback** do `2_descritores_eventos_v0_1.md` (nível 2 — template por tipo + `dom_*.nome`), não uma frase autorada na vitrine. A spec de vitrine chegou a esboçar frases próprias (`'Início do vínculo'`, `DD/MM/YYYY`, cargo do payload cru); rejeitadas por serem um **segundo desenho da mesma frase** — dupla fonte de verdade. Onde divergiam, a aba `Atributos por evento` (validada pelo PM, 2026-07-05) fica com o descritor: resolver via dimensão (`dom_cargo.nome`, não código), de-para de enum (`tipo_retorno`, `tipo_movimento`), formato de data do descritor (`MM/AAAA` em intervalo, `DD/MM/AAAA` pontual). O **nível 3** (`dom_*.nome_exibicao`, palavra RH-editável sem deploy) **não entra agora** — é aluguel sem uso enquanto o RH não revisou o passe; entra depois por `CREATE OR REPLACE VIEW`, que re-frase o passado inteiro de graça (a promessa do Apêndice A do descritor). A ausência da coluna não trava estampar.
+
+**Filme-Gestor não ganha flag de sigilo de motivo.** A ADR-010 (e a aba de fronteira validada) já decidem: o gestor **vê a categoria S-2230** do afastamento do subordinado, não o CID (que nem existe no dado). O flag `exibe_motivo_gestor` proposto no §Sensibilidade do descritor era proposta pendente RH — **não entra** nesta leva; a `vw_painel_filme_gestor` renderiza `dom_afastamento.nome`. Custo de reverter, se o RH decidir suprimir motivos protegidos: um `ALTER` + `CREATE OR REPLACE`, zero rework.
+
+**Opções consideradas.**
+1. Manter a inteligência no Power BI (DAX/relação/Power Query/formatação por regra). Rejeitada — frágil, repetida por painel, e afoga o usuário-alvo (ainda aprendendo os cliques básicos do BI) exatamente no ponto que o painel prometia poupar; contradiz "corte no DDL, não no BI" (ADR-007).
+2. Cada vitrine como fronteira própria (GRANT por vitrine). Rejeitada — infla peças e quebra a ADR-007 (fronteira mora na MV/GRANT); a vitrine herda, não redefine. Só a Consulta é exceção legítima (recorte de coluna genuinamente distinto).
+3. Frase autorada na vitrine (o esboço da spec). Rejeitada — dois desenhos da mesma frase; a frase é do descritor (nível 2), consumida pela vitrine.
+4. **Vitrine por superfície sobre o objeto de fronteira, herdando GRANT; frase pela escada do descritor; Consulta como única fronteira nova.** Escolhida.
+
+**Resultado.** Schema v0.15: `ALTER dom_situacao_vinculo ADD cor_fundo, cor_fonte` (+ `UPDATE` da paleta dos 5 painéis — os 6 `cod_situacao` casam com o seed, sem no-op); `vw_painel_consulta` (fronteira nova, GRANT próprio); `vw_painel_foto`, `vw_painel_lente`, `vw_painel_filme_servidor`, `vw_painel_filme_gestor` (vitrines, herdam GRANT do objeto-base); vitrines da Calculadora ganham `competencia_data` (N9) e `valor_assinado` (N10). O par `vw_mv_filme_servidor`/`vw_mv_filme_gestor` (as `SELECT *` da ADR-007 que sobem payload) pode ser aposentado como ponto de conexão do painel quando as `vw_painel_filme_*` subirem — limpeza, não urgência. Decisão da mesa de engenharia (Tech Lead), 2026-07-05.
+
+**Pendências (não bloqueiam o fechamento):**
+- **`vw_painel_calc_dias` (dias líquidos) NÃO estampado** — quarentena: (a) intervalos de afastamento sobrepostos somam em dobro (falta merge gaps-and-islands antes do `SUM`); (b) `conta_efetivo_exercicio='parcial'` sem regra de desconto (o esboço ignora, chute conservador, não regra); (c) proveniência multi-fonte do afastamento (4.1×4.21×4.22) segue ADR aberta. O número sai plausível e errado — não estampar antes de fechar (a) e (b).
+- **Filme-Gestor: frase pobre pra eventos de vínculo** — a `mv_filme_gestor` não tem payload (ADR-010), então PROVIMENTO/ALTERACAO_FUNCAO/REMOCAO/PROGRESSAO/RETORNO caem no fallback nível 1 (`tipo — data`); AFASTAMENTO/DESLIGAMENTO/CESSAO têm frase própria (vêm de coluna plana + dimensão). Enriquecer (ex.: destino da remoção pro gestor) exige adicionar coluna nomeada à allowlist da MV — decisão de exposição (ADR-010), fora do escopo da vitrine.
+- **`exibe_motivo_gestor` (§Sensibilidade do descritor)** — motivos protegidos (25 vítima de violência, 11 cárcere, 06 invalidez) hoje aparecem por nome ao gestor. O "gestor assina o PAD → vê tudo" justifica disciplinar, não afastamento protetivo. Fica registrado como a linha mais afiada quando o RH/diretora revisar o §Sensibilidade — decisão deles.
+- **Telefone/ramal na Consulta** — coluna ainda não existe na FOTO; `vw_painel_consulta` nasce sem, recebe quando subir.
+- **Frase de TRANSFERIDO** (motivos 29/37) — exige órgão destino no payload de DESLIGAMENTO (ausente, já na Seção 2); até lá a frase devolve só o nome do motivo.
+- **GRANT da Consulta** — role público/institucional é ilustrativo no schema; o nome real é do ambiente (Code/PM aterra).
 
 ---
 

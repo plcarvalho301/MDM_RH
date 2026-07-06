@@ -44,6 +44,21 @@ INSERT INTO dom_situacao_vinculo (cod_situacao, nome_situacao) VALUES
     ('TRANSFERIDO',    'Transferido (redistribuicao p/ outro orgao)')  -- S-2299 mtv 29/37; fraseamento origem->destino pendente (ADR Secao 2)
 ON CONFLICT (cod_situacao) DO NOTHING;
 
+-- v0.15 (ADR-012, N5): paleta dos paineis — cor e DADO da dimensao (PBI formata
+-- "por valor de campo", configura uma vez; RH muda cor por UPDATE, sem deploy).
+-- UPDATE separado do INSERT de proposito: o ON CONFLICT DO NOTHING acima nao
+-- re-colore banco vivo; este UPDATE e idempotente e cobre fresh + existente.
+UPDATE dom_situacao_vinculo AS d SET cor_fundo = v.f, cor_fonte = v.t
+FROM (VALUES
+    ('ATIVO',           '#E1F5EE', '#0F6E56'),
+    ('CEDIDO',          '#FAEEDA', '#854F0B'),
+    ('DISPONIBILIDADE', '#E6F1FB', '#185FA5'),
+    ('INATIVO',         '#F1EFE8', '#5F5E5A'),
+    ('DESLIGADO',       '#FCEBEB', '#A32D2D'),
+    ('TRANSFERIDO',     '#EEEDFE', '#534AB7')
+) AS v(cod, f, t)
+WHERE d.cod_situacao = v.cod;
+
 
 -- =============================================================================
 -- 2. dom_regime_juridico — regime do vinculo (FK de servidor.regime_juridico)

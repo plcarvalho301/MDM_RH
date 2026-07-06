@@ -10,4 +10,6 @@
 
 REFRESH MATERIALIZED VIEW mv_filme_servidor;
 REFRESH MATERIALIZED VIEW mv_filme_gestor;
-REFRESH MATERIALIZED VIEW mv_calculadora;
+-- v0.12 (ADR-011): mv_calculadora dividiu em folha x PSS
+REFRESH MATERIALIZED VIEW mv_calculadora_folha;
+REFRESH MATERIALIZED VIEW mv_calculadora_pss;
