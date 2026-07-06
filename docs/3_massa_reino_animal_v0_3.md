@@ -12,7 +12,7 @@
 
 **Regra:** `[nome humano] + [sobrenome de kind animal]` — ex.: "Marina Lobato-Cerva". Sintetizados por regra, sem lista fechada.
 
-**Exceções fixas (hard-coded):** Diretor-Geral = **Luís Ovolino** (CCE 1.18); Vice Diretor-Geral = **João Equino** (CCE 1.18). A chefe 1.15 da Câmara de Cria gera nome feminino ("a diretora" — sabor, custo zero).
+**Exceções fixas (hard-coded):** Diretor-Geral = **Aurélio Leão** (CCE 1.18); Vice Diretor-Geral = **João Equino** (CCE 1.18). A chefe 1.15 da Câmara de Cria gera nome feminino ("a diretora" — sabor, custo zero).
 
 ## 2. Estrutura organizacional (dom_unidade_eorg)
 

@@ -241,9 +241,9 @@ camada_B:
 
   # Exceções institucionais hard-coded (massa v0.3 §1):
   - id: 99
-    nome: "Luís Ovolino"
+    nome: "Aurélio Leão"
     contagem: 1
-    fixo: {nome_completo: "Luís Ovolino", funcao: "CCE 1.18", lotacao_nome: "Câmara da Rainha"}
+    fixo: {nome_completo: "Aurélio Leão", funcao: "CCE 1.18", lotacao_nome: "Câmara da Rainha"}
     cargo: Analista
     carreira_anos: [25, 30]
     progressao: {modo: minimo_legal}

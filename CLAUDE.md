@@ -31,6 +31,7 @@ gerador/
   gerador_eventos.py  # re-runs the SAME per-vínculo trajectory and emits the EVENTO series
   trajetorias.py      # single trajectory engine, shared by both generators (rng keyed by seed:matricula:traj_salt)
   semente_trajetorias_v1.yaml  # the 14 designer archetypes — the heart of the generation logic
+  decreto_animalizado_v1.yaml  # org structure "decree" (ADR-013): units + FCE quadro, versioned by (numero_decreto, data_vigencia); base vigência drives the massa
   config.yaml          # tunable calibration + seed (never hardcode volumetrics elsewhere)
 loader/
   carrega_foto.py      # servidor.csv -> `servidor` table (UPSERT, reject-quarantine path)
@@ -57,10 +58,11 @@ Everything below runs from the repo root unless noted. Requires PostgreSQL 18 an
 # 1. Schema + base domains FIRST (generators read model rules from the seeded domains)
 psql -d mdm_rh -f sql/3_schema_mdm.sql -f sql/seed_dominios.sql
 
-# 2. Canonical FOTO (archetype-first) + unit/function seeds
+# 2. Canonical FOTO (archetype-first) + unit/function/structure seeds
 python gerador/gen_massa.py --config gerador/config.yaml --outdir gerador/out
 psql -d mdm_rh -f gerador/out/seed_unidades_reino_animal.sql \
-               -f gerador/out/seed_funcao_reino_animal.sql
+               -f gerador/out/seed_funcao_reino_animal.sql \
+               -f gerador/out/seed_estrutura_decreto.sql   # dom_estrutura_decreto (ADR-013, 2 vigências)
 
 # 3. EVENTOS: re-run the same trajectories, emit base+folha+pss+lixo loads
 python gerador/gerador_eventos.py --valida

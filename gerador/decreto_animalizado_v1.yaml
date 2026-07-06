@@ -1,0 +1,143 @@
+# =============================================================================
+# MDM-RH — Decreto de estrutura regimental ANIMALIZADO (Reino Animal) — ADR-013
+# versao: v1 — 2026-07-06
+# -----------------------------------------------------------------------------
+# ESQUELETO da estrutura organizacional (arvore de unidades + cargos/funcoes +
+# nivel hierarquico), na forma de um "decreto animalizado" espelhando o decreto
+# de estrutura regimental REAL da ABIN (11.816/2023, com nova redacao pelo
+# 12.503/2025). Antes hardcoded no gen_massa.py; agora vive aqui, versionado por
+# (numero_decreto, data_vigencia) — o padrao que a ADR-013 fecha.
+#
+# DUAS VIGENCIAS (ambas vigentes no dominio dom_estrutura_decreto):
+#   - 11.816/2023 = redacao BASE. E a que GERA A MASSA (gen_massa le esta vigencia:
+#     `unidades` define cod_unidade e a ordem de iteracao; `quadro` define as
+#     posicoes FCE). ORDEM E CRITICA: reordenar muda o stream do RNG e quebra a
+#     reprodutibilidade da massa (seed 42). NAO reordenar unidades nem quadro.
+#   - 12.503/2025 = DELTA sobre a base. NAO gera massa; so popula o dominio como
+#     2a redacao, exercitando o versionamento e o 2o espelho do orfao.
+#
+# CODIGO CCE/FCE (estrutura do proprio decreto, Decreto 10.829/2021):
+#   1o digito  = trilha        (1 direcao/chefia, 2 assessoramento, 3 projeto)
+#   2o numero  = nivel_ordinal (18>17>15>13>10>07>05 — ordinal de hierarquia)
+# Nesta leva so a TRILHA-1 (linha de direcao/chefia) e modelada.
+# =============================================================================
+
+vigencia_base: "11.816/2023"      # a redacao que GERA a massa
+
+constantes:
+  cod_base: 100001                # cod da 1a unidade; +i pela ordem de `unidades`
+  cod_topo: 100000                # no sintetico da Direcao-Geral (DG+Vice), fora de `unidades`
+  toca2_coords_grupo: 11
+  toca2_105: [6, 3]               # (fce, cce) no grupo de 9 (toca2)
+  toca3_105: [10, 5]              # (fce, cce) no grupo de 15 (toca3)
+
+# NOMES_FUNCAO — rotulo human-readable por codigo (a massa usa o subconjunto que
+# aparece nos servidores; chaves extras da vigencia 2 sao inofensivas).
+funcoes:
+  "CCE 1.18": "Cargo Comissionado Executivo 1.18"
+  "CCE 1.17": "Cargo Comissionado Executivo 1.17"
+  "CCE 1.15": "Cargo Comissionado Executivo 1.15"
+  "CCE 1.10": "Cargo Comissionado Executivo 1.10"
+  "CCE 1.07": "Cargo Comissionado Executivo 1.07"
+  "CCE 1.05": "Cargo Comissionado Executivo 1.05"
+  "FCE 1.15": "Funcao Comissionada Executiva 1.15"
+  "FCE 1.13": "Funcao Comissionada Executiva 1.13"
+  "FCE 1.10": "Funcao Comissionada Executiva 1.10"
+  "FCE 1.07": "Funcao Comissionada Executiva 1.07"
+  "FCE 1.05": "Funcao Comissionada Executiva 1.05"
+  "FCE 3.10": "Funcao Comissionada Executiva 3.10 (projeto)"
+  "FCE 3.07": "Funcao Comissionada Executiva 3.07 (projeto)"
+
+# Nominal per-grupo de toca (Superintendencias N1/N2/N3 animalizadas). Usado SO
+# para o dominio dom_estrutura_decreto (nominal do decreto); a MASSA das tocas
+# segue a logica de jitter do gen_massa (inalterada). chefia + niveis {cod: qtd}.
+quadro_toca:
+  toca1: { chefia: "FCE 1.13", niveis: { "FCE 1.10": 2, "FCE 1.05": 1 } }        # Superintendencia N1
+  toca2: { chefia: "FCE 1.13", niveis: { "FCE 1.10": 1, "FCE 1.05": 1 } }        # Superintendencia N2
+  toca3: { chefia: "FCE 1.13", niveis: { "FCE 1.07": 1, "FCE 1.05": 1 } }        # Superintendencia N3
+
+# No sintetico do topo (Direcao-Geral). DG+Vice = 2x CCE 1.18. pai = null.
+topo:
+  nome: "Direção do Reino"
+  chefia: "CCE 1.18"
+  quantidade: 2
+
+vigencias:
+
+  "11.816/2023":
+    data_vigencia: "2024-01-06"   # 30 dias apos publicacao (DOU 7.12.2023)
+
+    # ORDEM = UNIDADES (define cod_unidade = cod_base + indice). NAO reordenar.
+    unidades:
+      - { nome: "Vigília do Continente",       grupo: fim_sede }
+      - { nome: "Proteção do Reino",           grupo: fim_sede }
+      - { nome: "Batedores Além-Oceano",       grupo: fim_sede }
+      - { nome: "Guilda dos Ratos",            grupo: fim_sede }
+      - { nome: "Oficina de Casulos",          grupo: fim_sede }
+      - { nome: "Colmeia-Escola",              grupo: fim_sede }
+      - { nome: "Câmara de Cria",              grupo: meio }
+      - { nome: "Buscadores de Mantimentos",   grupo: meio }
+      - { nome: "Guarda das Estações",         grupo: meio }
+      - { nome: "Câmara da Rainha",            grupo: pequena }
+      - { nome: "Conselho das Regras Antigas", grupo: pequena }
+      - { nome: "Sentinelas de Dentro",        grupo: pequena }
+      - { nome: "Aferidores de Prumo",         grupo: pequena }
+      - { nome: "Bando de Arribação",          grupo: pequena }
+      - { nome: "Gruta do Sudeste",            grupo: toca1 }
+      - { nome: "Manguezal da Baía",           grupo: toca1 }
+      - { nome: "Toca do Oeste",               grupo: toca2 }
+      - { nome: "Lagoa do Sul",                grupo: toca2 }
+      - { nome: "Ninho do Norte",              grupo: toca2 }
+      - { nome: "Pântano Central",             grupo: toca2 }
+      - { nome: "Chapada do Planalto",         grupo: toca2 }
+      - { nome: "Restinga do Litoral",         grupo: toca2 }
+      - { nome: "Várzea do Grande Rio",        grupo: toca2 }
+      - { nome: "Capão dos Pampas",            grupo: toca2 }
+      - { nome: "Igarapé do Noroeste",         grupo: toca2 }
+      - { nome: "Brejo do Sertão",             grupo: toca3 }
+      - { nome: "Duna do Nordeste",            grupo: toca3 }
+      - { nome: "Penhasco da Serra",           grupo: toca3 }
+      - { nome: "Clareira da Mata",            grupo: toca3 }
+      - { nome: "Charco do Sudoeste",          grupo: toca3 }
+      - { nome: "Açude das Secas",             grupo: toca3 }
+      - { nome: "Formigueiro do Cerrado",      grupo: toca3 }
+      - { nome: "Cupinzeiro do Campo",         grupo: toca3 }
+      - { nome: "Alagado do Delta",            grupo: toca3 }
+      - { nome: "Campina do Leste",            grupo: toca3 }
+      - { nome: "Corredeira das Pedras",       grupo: toca3 }
+      - { nome: "Banhado do Extremo-Sul",      grupo: toca3 }
+      - { nome: "Recife das Marés",            grupo: toca3 }
+      - { nome: "Colina do Vale",              grupo: toca3 }
+      - { nome: "Mangue do Estuário",          grupo: toca3 }
+      - { nome: "Concílio dos Rastros",        grupo: estrutura }
+      - { nome: "Conselho das Famílias",       grupo: estrutura }
+      - { nome: "Pacto das Colônias Vizinhas", grupo: estrutura }
+
+    # ORDEM = QUADRO (define o stream de rng.shuffle no gen_massa). NAO reordenar
+    # unidades nem os niveis dentro de cada unidade. niveis: { "1.NN": [fce, cce] }.
+    quadro:
+      - { unidade: "Câmara da Rainha",            chefia: "FCE 1.15", niveis: { "1.13": [2,0], "1.10": [4,1], "1.07": [1,3] } }
+      - { unidade: "Bando de Arribação",          chefia: "FCE 1.13", niveis: {} }
+      - { unidade: "Conselho das Regras Antigas", chefia: "FCE 1.13", niveis: { "1.10": [1,0], "1.07": [1,0] } }
+      - { unidade: "Aferidores de Prumo",         chefia: "FCE 1.13", niveis: {} }
+      - { unidade: "Sentinelas de Dentro",        chefia: "FCE 1.13", niveis: { "1.10": [2,0], "1.07": [1,0] } }
+      - { unidade: "Guarda das Estações",         chefia: "CCE 1.17", niveis: { "1.13": [1,0], "1.10": [2,0] } }
+      - { unidade: "Oficina de Casulos",          chefia: "FCE 1.15", niveis: { "1.13": [3,0], "1.10": [8,0], "1.07": [7,0] } }
+      - { unidade: "Buscadores de Mantimentos",   chefia: "CCE 1.15", niveis: { "1.13": [2,0], "1.10": [4,2], "1.07": [8,1], "1.05": [2,0] } }
+      - { unidade: "Câmara de Cria",              chefia: "FCE 1.15", niveis: { "1.13": [2,0], "1.10": [5,0], "1.07": [3,0] } }
+      - { unidade: "Colmeia-Escola",              chefia: "FCE 1.15", niveis: { "1.13": [2,0], "1.10": [6,1], "1.07": [4,0] } }
+      - { unidade: "Vigília do Continente",       chefia: "FCE 1.15", niveis: { "1.13": [3,0], "1.10": [7,0], "1.07": [2,0] } }
+      - { unidade: "Proteção do Reino",           chefia: "FCE 1.15", niveis: { "1.13": [3,0], "1.10": [8,0], "1.07": [4,0] } }
+      - { unidade: "Batedores Além-Oceano",       chefia: "FCE 1.15", niveis: { "1.13": [2,0], "1.10": [5,0], "1.07": [4,0] } }
+      - { unidade: "Guilda dos Ratos",            chefia: "FCE 1.15", niveis: { "1.13": [3,0], "1.10": [5,0], "1.07": [3,0] } }
+
+  "12.503/2025":
+    data_vigencia: "2025-07-03"   # 21 dias apos publicacao (DOU 12.6.2025)
+    base: "11.816/2023"           # herda a topologia; aplica os deltas abaixo
+    # Deltas animalizados espelhando o 12.503/2025 real: um Departamento troca a
+    # chefia FCE->CCE (Depto Admin/Log: Diretor FCE 1.15 -> CCE 1.15); o Gabinete
+    # ganha posicoes de PROJETO (trilha-3); e um Departamento ganha um Servico.
+    deltas:
+      - { unidade: "Oficina de Casulos", set_chefia: "CCE 1.15" }                       # Diretor FCE 1.15 -> CCE 1.15
+      - { unidade: "Câmara da Rainha",   adiciona: { "FCE 3.10": 1, "FCE 3.07": 1 } }    # Gabinete ganha projeto (trilha-3)
+      - { unidade: "Oficina de Casulos", adiciona: { "FCE 1.05": 2 } }                   # ganha Servico (2x Chefe FCE 1.05)

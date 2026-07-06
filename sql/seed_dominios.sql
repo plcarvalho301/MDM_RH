@@ -184,10 +184,17 @@ ON CONFLICT (cod_tipo_evento) DO NOTHING;
 --     etc. carregam como TEXTO SOLTO (schema nao aplica a FK ate a lista fechar).
 --     Semear valor inventado = mentir dado de dominio. Fica vazio de proposito.
 -- dom_unidade_eorg:
---     carga por planilha SIORG/E-Org (manual, Q2 lifecycle). Na PoC de massa,
---     semeie um punhado de UORGs FICTICIAS junto do gerador de massa — e DEIXE
+--     LOTACAO viva: carga por planilha SIORG/E-Org (manual, Q2 lifecycle). Na PoC de
+--     massa, semeie um punhado de UORGs FICTICIAS junto do gerador de massa — e DEIXE
 --     algumas lotacoes apontando p/ UORG inexistente, senao vw_orfao_estrutural
 --     (KR 2.1) vem vazia e o painel delta nao prova o motor de adocao.
+-- dom_estrutura_decreto (ADR-013, schema v0.16):
+--     ESQUELETO da estrutura DERIVADO do decreto de estrutura regimental — ponto de
+--     ingestao proprio, versionado por (numero_decreto, data_vigencia). Supersede
+--     parcial da "Q2 lifecycle" (a estrutura de referencia do decreto AGORA e fonte de
+--     ingestao; o E-Org segue sendo so lotacao viva/reconciliacao). Seed NAO hand-seed
+--     aqui: e artefato GERADO (gerador/decreto_animalizado_v1.yaml -> out/
+--     seed_estrutura_decreto.sql), analogo aos seed_unidades_reino_animal.sql.
 -- dom_motivo_deslig:
 --     [RESOLVIDO na v0.2] O eixo evento entrou (validado e2e 2026-07-04); a tabela
 --     foi criada no schema v0.8 e o seed vive na SECAO 12 abaixo.

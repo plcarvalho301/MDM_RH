@@ -20,9 +20,12 @@
 # Le config.yaml e gera massa de FOTO (tabela servidor). NAO gera eventos.
 # Deterministico por seed (config; obrigatorio — invariante 5 da spec).
 #
-# ESTRUTURA (spec Secoes 2-4): as 43 unidades, o quadro FCE trilha-1 e a escada
-#   de niveis sao MODELO (decreto animalizado), nao parametro — vivem aqui no .py.
-#   Nomes de unidade sao editaveis; a estrutura porte x quantidade nao.
+# ESTRUTURA (spec Secoes 2-4 / ADR-013): as 43 unidades, o quadro FCE trilha-1 e a
+#   escada de niveis sao MODELO (decreto animalizado), nao parametro. Desde a ADR-013
+#   vivem em decreto_animalizado_v1.yaml, VERSIONADO por (numero_decreto, vigencia):
+#   a vigencia base 11.816/2023 GERA a massa (ordem preservada = seed 42 estavel); a
+#   vigencia delta 12.503/2025 so alimenta o dominio. Nomes de unidade sao editaveis;
+#   a estrutura porte x quantidade e a ORDEM nao (reordenar quebra o determinismo).
 #   Parametros ajustaveis (Secao 9 + comportamentos herdados do v0.1) vivem no
 #   config.yaml — nenhum numero de calibracao hardcoded fora do quadro.
 #
@@ -32,6 +35,7 @@
 #   acessos_paineis.csv              populacoes de acesso (GRANT) — spec Secao 7
 #   seed_unidades_reino_animal.sql   dom_unidade_eorg (orfas EXCLUIDAS — KR 2.1)
 #   seed_funcao_reino_animal.sql     dom_funcao (codigos CCE/FCE usados)
+#   seed_estrutura_decreto.sql       dom_estrutura_decreto (esqueleto, 2 vigencias — ADR-013)
 #   relatorio_massa.md               contagens + verificacao de invariantes
 #
 # COERENCIA TEMPORAL (contrato com o futuro gerador de eventos — herdado do v0.1):
@@ -53,97 +57,129 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import trajetorias as traj   # motor unico de trajetoria (arquetipos do designer)
 
 # ============================================================================
-# 1. ESTRUTURA — 43 unidades (spec Secao 2/3). cod 100001..100043
-# grupo: fim_sede | meio | pequena | toca1 | toca2 | toca3 | estrutura
+# 1. ESTRUTURA — derivada do decreto ANIMALIZADO versionado (ADR-013).
+# Antes hardcoded aqui; agora vem de decreto_animalizado_v1.yaml, vigencia BASE
+# (11.816/2023). ORDEM preservada byte-a-byte: `unidades` define cod 100001..
+# (e a ordem de iteracao); `quadro` define o stream de rng.shuffle. Reordenar o
+# YAML muda a massa (seed 42) — o diff de determinismo pega qualquer deriva.
+# A vigencia DELTA (12.503/2025) NAO gera massa: so alimenta o dominio.
 # ============================================================================
-UNIDADES = [
-    ("Vigília do Continente",        "fim_sede"),
-    ("Proteção do Reino",            "fim_sede"),
-    ("Batedores Além-Oceano",        "fim_sede"),
-    ("Guilda dos Ratos",             "fim_sede"),
-    ("Oficina de Casulos",           "fim_sede"),
-    ("Colmeia-Escola",               "fim_sede"),
-    ("Câmara de Cria",               "meio"),
-    ("Buscadores de Mantimentos",    "meio"),
-    ("Guarda das Estações",          "meio"),
-    ("Câmara da Rainha",             "pequena"),
-    ("Conselho das Regras Antigas",  "pequena"),
-    ("Sentinelas de Dentro",         "pequena"),
-    ("Aferidores de Prumo",          "pequena"),
-    ("Bando de Arribação",           "pequena"),
-    ("Gruta do Sudeste",             "toca1"),
-    ("Manguezal da Baía",            "toca1"),
-    ("Toca do Oeste",                "toca2"),
-    ("Lagoa do Sul",                 "toca2"),
-    ("Ninho do Norte",               "toca2"),
-    ("Pântano Central",              "toca2"),
-    ("Chapada do Planalto",          "toca2"),
-    ("Restinga do Litoral",          "toca2"),
-    ("Várzea do Grande Rio",         "toca2"),
-    ("Capão dos Pampas",             "toca2"),
-    ("Igarapé do Noroeste",          "toca2"),
-    ("Brejo do Sertão",              "toca3"),
-    ("Duna do Nordeste",             "toca3"),
-    ("Penhasco da Serra",            "toca3"),
-    ("Clareira da Mata",             "toca3"),
-    ("Charco do Sudoeste",           "toca3"),
-    ("Açude das Secas",              "toca3"),
-    ("Formigueiro do Cerrado",       "toca3"),
-    ("Cupinzeiro do Campo",          "toca3"),
-    ("Alagado do Delta",             "toca3"),
-    ("Campina do Leste",             "toca3"),
-    ("Corredeira das Pedras",        "toca3"),
-    ("Banhado do Extremo-Sul",       "toca3"),
-    ("Recife das Marés",             "toca3"),
-    ("Colina do Vale",               "toca3"),
-    ("Mangue do Estuário",           "toca3"),
-    ("Concílio dos Rastros",         "estrutura"),
-    ("Conselho das Famílias",        "estrutura"),
-    ("Pacto das Colônias Vizinhas",  "estrutura"),
-]
-COD_BASE = 100001
+_DECRETO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "decreto_animalizado_v1.yaml")
 
-# ============================================================================
-# 2. QUADRO FCE trilha-1 (spec Secao 4, PRE-jitter). Por unidade:
-#    dict nivel -> (n_fce, n_cce). Chefia marcada a parte (invariante).
-# ============================================================================
+def carrega_decreto(path=_DECRETO_PATH):
+    with open(path, encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+DECRETO   = carrega_decreto()
+_VIG_BASE = DECRETO["vigencia_base"]
+_BASE     = DECRETO["vigencias"][_VIG_BASE]
+
+# UNIDADES: lista ordenada (nome, grupo) — cod = COD_BASE + indice, pela ordem.
+UNIDADES = [(u["nome"], u["grupo"]) for u in _BASE["unidades"]]
+COD_BASE = DECRETO["constantes"]["cod_base"]
+
+# QUADRO FCE trilha-1 (PRE-jitter): unidade -> {chefia, "1.NN": (fce, cce)} na
+# ORDEM do `quadro` YAML (e dos niveis dentro de cada unidade). tuple() reproduz
+# os pares como estavam no literal antigo.
 QUADRO = {
-    "Câmara da Rainha":            {"chefia": "FCE 1.15", "1.13": (2,0), "1.10": (4,1), "1.07": (1,3)},
-    "Bando de Arribação":          {"chefia": "FCE 1.13"},
-    "Conselho das Regras Antigas": {"chefia": "FCE 1.13", "1.10": (1,0), "1.07": (1,0)},
-    "Aferidores de Prumo":         {"chefia": "FCE 1.13"},
-    "Sentinelas de Dentro":        {"chefia": "FCE 1.13", "1.10": (2,0), "1.07": (1,0)},
-    "Guarda das Estações":         {"chefia": "CCE 1.17", "1.13": (1,0), "1.10": (2,0)},
-    "Oficina de Casulos":          {"chefia": "FCE 1.15", "1.13": (3,0), "1.10": (8,0), "1.07": (7,0)},
-    "Buscadores de Mantimentos":   {"chefia": "CCE 1.15", "1.13": (2,0), "1.10": (4,2), "1.07": (8,1), "1.05": (2,0)},
-    "Câmara de Cria":              {"chefia": "FCE 1.15", "1.13": (2,0), "1.10": (5,0), "1.07": (3,0)},
-    "Colmeia-Escola":              {"chefia": "FCE 1.15", "1.13": (2,0), "1.10": (6,1), "1.07": (4,0)},
-    "Vigília do Continente":       {"chefia": "FCE 1.15", "1.13": (3,0), "1.10": (7,0), "1.07": (2,0)},
-    "Proteção do Reino":           {"chefia": "FCE 1.15", "1.13": (3,0), "1.10": (8,0), "1.07": (4,0)},
-    "Batedores Além-Oceano":       {"chefia": "FCE 1.15", "1.13": (2,0), "1.10": (5,0), "1.07": (4,0)},
-    "Guilda dos Ratos":            {"chefia": "FCE 1.15", "1.13": (3,0), "1.10": (5,0), "1.07": (3,0)},
+    q["unidade"]: {"chefia": q["chefia"],
+                   **{niv: tuple(par) for niv, par in q["niveis"].items()}}
+    for q in _BASE["quadro"]
 }
-# toca1 (cada): chefia 1.13 + 2x1.10 + 1x1.05
-# toca2: chefia 1.13 cada; 11 coordenacoes 1.10 no grupo (2 tocas c/ 2, 7 c/ 1);
-#        1.05: 9 no grupo (6 FCE + 3 CCE), 1 por toca.
-# toca3 (cada): chefia 1.13 + 1x1.07 + 1x1.05 (grupo de 15: 10 FCE + 5 CCE)
-TOCA2_COORDS_GRUPO = 11
-TOCA2_105 = (6, 3)   # (fce, cce) no grupo de 9
-TOCA3_105 = (10, 5)  # (fce, cce) no grupo de 15
 
-NOMES_FUNCAO = {
-    "CCE 1.18": "Cargo Comissionado Executivo 1.18",
-    "CCE 1.17": "Cargo Comissionado Executivo 1.17",
-    "CCE 1.15": "Cargo Comissionado Executivo 1.15",
-    "CCE 1.10": "Cargo Comissionado Executivo 1.10",
-    "CCE 1.07": "Cargo Comissionado Executivo 1.07",
-    "CCE 1.05": "Cargo Comissionado Executivo 1.05",
-    "FCE 1.15": "Funcao Comissionada Executiva 1.15",
-    "FCE 1.13": "Funcao Comissionada Executiva 1.13",
-    "FCE 1.10": "Funcao Comissionada Executiva 1.10",
-    "FCE 1.07": "Funcao Comissionada Executiva 1.07",
-    "FCE 1.05": "Funcao Comissionada Executiva 1.05",
-}
+# constantes de toca (grupos de Superintendencia). Comentarios nominais:
+# toca1: chefia 1.13 + 2x1.10 + 1x1.05 | toca2: chefia 1.13 + coord 1.10 (11 no
+# grupo de 9) + 1.05 (9 no grupo) | toca3: chefia 1.13 + 1x1.07 + 1x1.05.
+TOCA2_COORDS_GRUPO = DECRETO["constantes"]["toca2_coords_grupo"]
+TOCA2_105 = tuple(DECRETO["constantes"]["toca2_105"])   # (fce, cce) no grupo de 9
+TOCA3_105 = tuple(DECRETO["constantes"]["toca3_105"])   # (fce, cce) no grupo de 15
+
+NOMES_FUNCAO = dict(DECRETO["funcoes"])
+
+# ============================================================================
+# 1b. DOMINIO dom_estrutura_decreto (ADR-013) — derivacao do ESQUELETO a partir
+# do decreto animalizado. Puro (SEM rng): so estrutura -> linhas de dominio.
+# Codigo CCE/FCE: 1o digito = trilha, 2o numero = nivel_ordinal (hierarquia).
+# ============================================================================
+_TIPO_POR_NIVEL = {18: "Direção-Geral", 17: "Secretaria", 15: "Diretoria",
+                   13: "Superintendência/Coordenação-Geral", 10: "Coordenação",
+                   7: "Divisão", 5: "Serviço"}
+_DENOM_POR_NIVEL = {18: "Dirigente Máximo", 17: "Secretário", 15: "Diretor",
+                    13: "Coordenador-Geral", 10: "Coordenador",
+                    7: "Chefe de Divisão", 5: "Chefe de Serviço"}
+
+def _parse_cod_funcao(cod):
+    """'FCE 1.07' -> (trilha=1, nivel_ordinal=7)."""
+    _, num = cod.split()
+    t, n = num.split(".")
+    return int(t), int(n)
+
+def _resolve_sede(vig_nome):
+    """{unidade: {'chefia': cod, 'posicoes': {cod_funcao: qtd}}} da vigencia (aplica
+    deltas se for redacao derivada). So unidades de sede (quadro); tocas/topo a parte."""
+    vig = DECRETO["vigencias"][vig_nome]
+    quadro_list = vig.get("quadro") or DECRETO["vigencias"][vig["base"]]["quadro"]
+    res = {}
+    for q in quadro_list:
+        pos = {}
+        for niv, (fce, cce) in q["niveis"].items():
+            if fce: pos[f"FCE {niv}"] = pos.get(f"FCE {niv}", 0) + fce
+            if cce: pos[f"CCE {niv}"] = pos.get(f"CCE {niv}", 0) + cce
+        res[q["unidade"]] = {"chefia": q["chefia"], "posicoes": pos}
+    for d in vig.get("deltas", []):
+        alvo = res[d["unidade"]]
+        if "set_chefia" in d:
+            alvo["chefia"] = d["set_chefia"]
+        for cod, qtd in d.get("adiciona", {}).items():
+            alvo["posicoes"][cod] = alvo["posicoes"].get(cod, 0) + qtd
+    return res
+
+def _rows_unidade(numero, data_vig, cod, nome, pai, chefia_cod, posicoes, chefia_qtd=1):
+    ct, cn = _parse_cod_funcao(chefia_cod)
+    tipo = _TIPO_POR_NIVEL.get(cn, "")
+    linha = lambda c, q, ch: dict(
+        numero_decreto=numero, data_vigencia=data_vig, cod_unidade=cod,
+        nome_unidade=nome, cod_unidade_pai=pai, tipo_unidade=tipo, cod_funcao=c,
+        denominacao=_DENOM_POR_NIVEL.get(_parse_cod_funcao(c)[1], c),
+        trilha=_parse_cod_funcao(c)[0], nivel_ordinal=_parse_cod_funcao(c)[1],
+        quantidade=q, chefia=ch)
+    out = [linha(chefia_cod, chefia_qtd, True)]
+    out += [linha(c, q, False) for c, q in posicoes.items()]
+    return out
+
+def linhas_estrutura_decreto(unidades):
+    """Linhas de dom_estrutura_decreto p/ TODAS as vigencias. Inclui unidades orfas
+    de proposito (viram 'so_no_decreto' em vw_orfao_estrutura_decreto); pula as de
+    grupo 'estrutura' (sem cargo-funcao no decreto)."""
+    qtoca = DECRETO["quadro_toca"]
+    topo = DECRETO["topo"]
+    cod_topo = DECRETO["constantes"]["cod_topo"]
+    rows = []
+    for vig_nome, vig in DECRETO["vigencias"].items():
+        data_vig = vig["data_vigencia"]
+        sede = _resolve_sede(vig_nome)
+        rows += _rows_unidade(vig_nome, data_vig, cod_topo, topo["nome"], None,
+                              topo["chefia"], {}, chefia_qtd=topo["quantidade"])
+        for nome, u in unidades.items():
+            grupo = u["grupo"]
+            if grupo == "estrutura":
+                continue
+            if grupo.startswith("toca"):
+                qt = qtoca[grupo]
+                chefia, posic = qt["chefia"], dict(qt["niveis"])
+            elif nome in sede:
+                chefia, posic = sede[nome]["chefia"], sede[nome]["posicoes"]
+            else:
+                continue
+            rows += _rows_unidade(vig_nome, data_vig, u["cod"], nome, cod_topo, chefia, posic)
+    return rows
+
+def _sql_lit(v):
+    if v is None:            return "NULL"
+    if isinstance(v, bool):  return "true" if v else "false"
+    if isinstance(v, int):   return str(v)
+    return "'" + str(v).replace("'", "''") + "'"
 
 # ============================================================================
 # 3. NOMES — [nome humano] + [sobrenome kind animal], por sexo (spec Secao 1;
@@ -392,7 +428,7 @@ def gerar(cfg, outdir):
 
     # topo (hard-coded, spec Secao 1) — lotacao: cfg lotacao_dg_vice
     un_topo = cfg["lotacao_dg_vice"]
-    dg_p = nova_pessoa(sexo="M", nome="Luís Ovolino"); usados.add("Luís Ovolino")
+    dg_p = nova_pessoa(sexo="M", nome="Aurélio Leão"); usados.add("Aurélio Leão")
     vice_p = nova_pessoa(sexo="M", nome="João Equino"); usados.add("João Equino")
     dg = vinculo(dg_p, un_topo, "Analista", "CCE 1.18")
     vice = vinculo(vice_p, un_topo, "Analista", "CCE 1.18")
@@ -488,8 +524,8 @@ def gerar(cfg, outdir):
 
     # (a) DG/Vice — arquetipos institucionais fixos (semente ids 99/98)
     for s in servidores:
-        if s["nome"] == "Luís Ovolino":
-            estampa_arquetipo(s, "Luís Ovolino")
+        if s["nome"] == "Aurélio Leão":
+            estampa_arquetipo(s, "Aurélio Leão")
         elif s["nome"] == "João Equino":
             estampa_arquetipo(s, "João Equino")
 
@@ -502,7 +538,7 @@ def gerar(cfg, outdir):
         estampa_arquetipo(s, molde["nome"])
 
     # (c) Camada B — PLANTADOS (contagem fixa, invariante ao N; casos-limite)
-    fixos_nomes = {"Luís Ovolino", "João Equino"}
+    fixos_nomes = {"Aurélio Leão", "João Equino"}
     plantaveis = [b for b in semente["camada_B"] if b["nome"] not in fixos_nomes]
     pool = [s for s in servidores
             if not s["funcao_comissionada"] and s["nome"] not in fixos_nomes]
@@ -600,6 +636,21 @@ def gerar(cfg, outdir):
         f.write(",\n".join(f"    ('{c}', '{NOMES_FUNCAO[c]}')" for c in usadas))
         f.write("\nON CONFLICT (cod) DO NOTHING;\n")
 
+    # ADR-013: ESQUELETO do decreto animalizado -> dom_estrutura_decreto (2 vigencias).
+    # Inclui unidades orfas de proposito (o E-Org exclui as orfas; a diferenca aparece
+    # em vw_orfao_estrutura_decreto — o 2o espelho da KR 2.1).
+    cols = ["numero_decreto", "data_vigencia", "cod_unidade", "nome_unidade",
+            "cod_unidade_pai", "tipo_unidade", "cod_funcao", "denominacao",
+            "trilha", "nivel_ordinal", "quantidade", "chefia"]
+    with open(outdir / "seed_estrutura_decreto.sql", "w", encoding="utf-8") as f:
+        f.write("-- dom_estrutura_decreto — ESQUELETO do decreto ANIMALIZADO (ADR-013).\n")
+        f.write("-- Vigencias: 11.816/2023 (base, gera a massa) + 12.503/2025 (delta).\n")
+        f.write("-- ORFAS INCLUIDAS de proposito (viram 'so_no_decreto' no 2o espelho).\n")
+        f.write("INSERT INTO dom_estrutura_decreto (" + ", ".join(cols) + ") VALUES\n")
+        linhas = ["    (" + ", ".join(_sql_lit(r[c]) for c in cols) + ")"
+                  for r in linhas_estrutura_decreto(unidades)]
+        f.write(",\n".join(linhas) + "\nON CONFLICT DO NOTHING;\n")
+
     return servidores, pessoas, acessos, unidades, orfas, fator, d_ref
 
 
@@ -637,8 +688,8 @@ def validar(servidores, pessoas, acessos, unidades, orfas, fator, cfg, d_ref, ou
     acum = sum(1 for v in cpfs.values() if len(v) > 1)
     check(acum > 0, f"acumulacao licita: {acum} CPFs com 2 vinculos")
 
-    dg = [s for s in servidores if s["nome"] == "Luís Ovolino"]
-    check(len(dg) == 1 and dg[0]["funcao_comissionada"] == "CCE 1.18", "DG = Luis Ovolino CCE 1.18")
+    dg = [s for s in servidores if s["nome"] == "Aurélio Leão"]
+    check(len(dg) == 1 and dg[0]["funcao_comissionada"] == "CCE 1.18", "DG = Aurelio Leao CCE 1.18")
 
     # --- arquetipos (v0.3: a vida vem do designer) -----------------------------
     check(all(s.get("arquetipo") for s in servidores), "todo vinculo tem arquetipo")

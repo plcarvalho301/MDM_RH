@@ -1,10 +1,24 @@
 -- =============================================================================
 -- MDM-RH — Schema do golden record (FOTO + EVENTO)
--- versao: v0.15
--- ancora: 3_depara_foto_v0_3.md | 3_catalogo_eventos_v1.yaml (v1.3) | ADR-007 | ADR-008 | ADR-009 | ADR-010 | ADR-011 | ADR-012
+-- versao: v0.16
+-- ancora: 3_depara_foto_v0_3.md | 3_catalogo_eventos_v1.yaml (v1.3) | ADR-007 | ADR-008 | ADR-009 | ADR-010 | ADR-011 | ADR-012 | ADR-013
 -- =============================================================================
 -- HISTORICO DE VERSAO (versao dentro do arquivo; nome sem versao)
---   v0.15 (este) — CAMADA DE VITRINE POR PAINEL (ADR-012, handoff vitrine PBI
+--   v0.16 (este) — ESTRUTURA DERIVADA DO DECRETO (ADR-013): esqueleto de unidades
+--                 e cargos/funcoes derivado do decreto de estrutura regimental
+--                 (Anexos I/II), ponto de ingestao versionado por (numero_decreto,
+--                 data_vigencia). Fecha a fonte da "arvore de cargos" do Filme-Gestor
+--                 (2_prespec_lentes §3b) sem depender de acesso SIORG.
+--                 (1) dom_estrutura_decreto — tabela nova, SEPARADA de dom_unidade_eorg
+--                     (esqueleto de referencia x lotacao viva reconciliada). trilha (1o
+--                     digito) e nivel_ordinal (2o numero) derivados do codigo CCE/FCE —
+--                     a hierarquia que o schema nao decodificava (funcao_comissionada
+--                     era texto cru). Seed = artefato GERADO (decreto animalizado, 2
+--                     vigencias 11.816/2023 -> 12.503/2025). Nesta leva so a trilha-1.
+--                 (2) vw_orfao_estrutura_decreto — 2o espelho da KR 2.1: unidade no
+--                     decreto (vigencia corrente) ausente no E-Org, e vice-versa.
+--                 Aditivo puro: nenhuma view existente reordenada/removida.
+--   v0.15 — CAMADA DE VITRINE POR PAINEL (ADR-012, handoff vitrine PBI
 --                 2026-07-05, spec_vitrine_pbi_v0_1 N1-N11): uma view
 --                 vw_painel_<superficie> por superficie de tela, com o shape EXATO
 --                 do painel — rotulo humano, booleano 0/1, percentual, cor, frase,
@@ -250,8 +264,41 @@ CREATE TABLE dom_motivo_deslig (
 CREATE TABLE dom_unidade_eorg (
     cod_unidade   int PRIMARY KEY,
     nome_unidade  text NOT NULL
-    -- estrutura SIORG/E-Org, chega RECONCILIADA (carga por planilha; nao-API).
+    -- estrutura SIORG/E-Org VIVA, chega RECONCILIADA (carga por planilha; nao-API).
+    -- LOTACAO viva pessoa<->unidade. Distinta do ESQUELETO do decreto abaixo (ADR-013):
+    -- o decreto da o galho fixo; o E-Org da onde a pessoa esta hoje.
 );
+
+-- v0.16 (ADR-013): ESQUELETO da estrutura organizacional DERIVADO do decreto de
+-- estrutura regimental (Anexos I/II), como ponto de ingestao versionado por
+-- (numero_decreto, data_vigencia). Separado de dom_unidade_eorg de proposito:
+-- esqueleto de referencia (galho fixo do decreto) x lotacao viva reconciliada (E-Org)
+-- — e o que habilita o 2o espelho do orfao (vw_orfao_estrutura_decreto).
+-- Codigo CCE/FCE: 1o digito = trilha (1 direcao/chefia, 2 assessoramento, 3 projeto);
+-- 2o numero = nivel_ordinal (18>17>15>13>10>07>05 — carrega a hierarquia: uma
+-- Superintendencia 1.13 e inferior a uma Diretoria 1.15). O schema NAO decodificava
+-- funcao_comissionada (texto cru); esta tabela e onde a estrutura de codigo do decreto
+-- passa a ser consumida. Seed = artefato GERADO (gerador/decreto_animalizado_v1.yaml
+-- -> seed_estrutura_decreto.sql), nao hand-seed. Nesta leva so a trilha-1.
+CREATE TABLE dom_estrutura_decreto (
+    numero_decreto   text NOT NULL,          -- ex.: '11.816/2023', '12.503/2025'
+    data_vigencia    date NOT NULL,          -- inicio de vigencia da redacao
+    cod_unidade      int  NOT NULL,
+    nome_unidade     text NOT NULL,
+    cod_unidade_pai  int,                     -- arvore (Anexo I/II indentacao); null = topo
+    tipo_unidade     text,                    -- Direcao-Geral/Secretaria/Diretoria/Superintendencia/Coordenacao-Geral/Coordenacao/Divisao/Servico
+    cod_funcao       text NOT NULL,           -- codigo CCE/FCE cru ('FCE 1.07')
+    denominacao      text NOT NULL,           -- rotulo human-readable ('Chefe') — NAO chave de ordenacao
+    trilha           int  NOT NULL,           -- 1o digito do codigo (1/2/3)
+    nivel_ordinal    int  NOT NULL,           -- 2o numero do codigo (18..05) — hierarquia
+    quantidade       int  NOT NULL DEFAULT 1, -- Anexo II "CARGO/FUNCAO No" (posicoes iguais agregadas)
+    chefia           boolean NOT NULL DEFAULT false,  -- true = cargo que chefia a unidade
+    CONSTRAINT pk_estrutura_decreto
+        PRIMARY KEY (numero_decreto, data_vigencia, cod_unidade, cod_funcao, denominacao),
+    CONSTRAINT ck_estrutura_trilha CHECK (trilha BETWEEN 1 AND 3)
+);
+CREATE INDEX ix_estrutura_decreto_unidade ON dom_estrutura_decreto(cod_unidade);
+CREATE INDEX ix_estrutura_decreto_vigencia ON dom_estrutura_decreto(numero_decreto, data_vigencia);
 
 -- Dominios de evento (catalogo_eventos_v1, Partes 1/2):
 CREATE TABLE dom_sub_dominio (
@@ -502,6 +549,26 @@ SELECT s.id_vinculo, s.matricula_funcional, s.nome,
 FROM servidor s
 LEFT JOIN dom_unidade_eorg u ON u.cod_unidade = s.cod_unidade_lotacao
 WHERE u.cod_unidade IS NULL;
+
+-- KR 2.1 (2o espelho, ADR-013) — orfao estrutural DECRETO x E-Org: unidade que
+-- existe no decreto (vigencia CORRENTE = max data_vigencia) e nao no E-Org, e
+-- vice-versa. Complementa vw_orfao_estrutural (lotacao x E-Org) com o espelho
+-- esqueleto x lotacao viva. `lado` diz de que fonte a unidade orfa veio.
+CREATE VIEW vw_orfao_estrutura_decreto AS
+WITH corrente AS (
+    SELECT DISTINCT cod_unidade, nome_unidade
+    FROM dom_estrutura_decreto
+    WHERE data_vigencia = (SELECT max(data_vigencia) FROM dom_estrutura_decreto)
+)
+SELECT 'so_no_decreto'::text AS lado, c.cod_unidade, c.nome_unidade
+FROM corrente c
+LEFT JOIN dom_unidade_eorg u ON u.cod_unidade = c.cod_unidade
+WHERE u.cod_unidade IS NULL
+UNION ALL
+SELECT 'so_no_eorg'::text AS lado, u.cod_unidade, u.nome_unidade
+FROM dom_unidade_eorg u
+LEFT JOIN corrente c ON c.cod_unidade = u.cod_unidade
+WHERE c.cod_unidade IS NULL;
 
 -- KR 2.2 (gancho) — afastado que ainda conta como exercicio efetivo.
 -- NAO fecha o KR sozinho (depende de tempestividade — dado do HISTORICO).

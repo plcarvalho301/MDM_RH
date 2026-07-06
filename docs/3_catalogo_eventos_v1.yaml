@@ -536,6 +536,34 @@ dominios_novos:
       - { cod: "CASS_APOSENT",    nome: "Cassação de aposentadoria",                     resultado: Desligado, e_esocial: false, obs: "2º DESLIGAMENTO sobre estado Inativo (arquétipo Gerson)" }
       - { cod: "ANUL_PROVIMENTO", nome: "Anulação de provimento (decisão judicial)",     resultado: Desligado, e_esocial: false, obs: "'nunca valeu': semântica retroativa é da projeção/Calculadora, nunca rewrite da série (arquétipo Vicente)" }
 
+  dom_estrutura_decreto:
+    pk: [numero_decreto, data_vigencia, cod_unidade, cod_funcao, denominacao]
+    dono: "externo (decreto de estrutura regimental — Anexos I/II)"
+    natureza: versionado_por_vigencia
+    adr: ADR-013
+    schema: v0.16
+    obs: >
+      ESQUELETO da estrutura organizacional (árvore de unidades + cargos/funções por
+      unidade + nível hierárquico), DERIVADO por regra do decreto de estrutura regimental
+      como ponto de ingestão próprio — não catálogo manual de cargos. Versionado por
+      (numero_decreto, data_vigencia): revisão por novo decreto ACRESCENTA vigência, não
+      sobrescreve. Separado de dom_unidade_eorg de propósito (esqueleto de referência ×
+      lotação viva reconciliada) — habilita o 2º espelho do órfão (vw_orfao_estrutura_decreto).
+      Fecha a fonte da "árvore de cargos" do Filme-Gestor (2_prespec_lentes §3b).
+    derivacao:
+      // A estrutura de código CCE/FCE é do próprio decreto (Decreto 10.829/2021):
+      trilha:        "1º dígito do código (1=direção/chefia, 2=assessoramento, 3=projeto)"
+      nivel_ordinal: "2º número do código (18>17>15>13>10>07>05) — ordinal de hierarquia"
+      chefia:        "cargo cuja linha encabeça o bloco da unidade no Anexo II"
+      tipo_unidade:  "derivado do nível_ordinal da chefia (Diretoria 1.15 > Superintendência 1.13 etc.)"
+    escopo:
+      trilha_1: "nesta leva só a linha de direção/chefia (1.xx)"
+      fora: "assessoramento (2.xx) e projeto (3.xx, ex. FCE 3.10/3.07 do 12.503/2025) catalogados fora do retrofit"
+    fonte_demo: >
+      Seed = artefato GERADO (gerador/decreto_animalizado_v1.yaml → out/seed_estrutura_decreto.sql),
+      não hand-seed. Duas vigências: 11.816/2023 (base, gera a massa) → 12.503/2025 (delta).
+      A ingestão do decreto real (ABIN) fica como caminho de deployment, não implementada.
+
 
 // =============================================================================
 // PARTE 7 — PENDÊNCIAS / DECISÕES EM ABERTO

@@ -7,7 +7,7 @@ Registro das decisões arquiteturais do MDM-RH. Duas seções:
 
 Convenção: o catálogo (`3_catalogo_eventos_v1.yaml`) é o **o quê** (schema vivo, muda toda hora). Este arquivo é o **porquê** (decisão, imutável quando numerada). O catálogo referencia a ADR; não repete a justificativa.
 
-Data: 2026-06-23. Última atualização: 2026-07-05 (+ADR-008, +ADR-009, +ADR-010, +ADR-011, +ADR-012).
+Data: 2026-06-23. Última atualização: 2026-07-06 (+ADR-008, +ADR-009, +ADR-010, +ADR-011, +ADR-012, +ADR-013).
 
 ---
 
@@ -242,6 +242,36 @@ A vitrine **não é fronteira**: resolve no `SELECT` contra o objeto de fronteir
 - **Telefone/ramal na Consulta** — coluna ainda não existe na FOTO; `vw_painel_consulta` nasce sem, recebe quando subir.
 - **Frase de TRANSFERIDO** (motivos 29/37) — exige órgão destino no payload de DESLIGAMENTO (ausente, já na Seção 2); até lá a frase devolve só o nome do motivo.
 - **GRANT da Consulta** — role público/institucional é ilustrativo no schema; o nome real é do ambiente (Code/PM aterra).
+
+---
+
+## ADR-013 — Estrutura organizacional derivada do decreto de estrutura regimental, como ponto de ingestão versionado por vigência
+
+**Decisão.** O esqueleto da estrutura organizacional do órgão — árvore de unidades, cargos/funções por unidade, e o nível hierárquico de cada cargo — passa a ser **derivado por regra do decreto de estrutura regimental** (Anexos I e II), e entra no MDM como **ponto de ingestão próprio**, não como planilha de domínio carregada à mão. A derivação é determinística e não usa catálogo manual de cargos:
+
+- **Unidade → nó da árvore.** O Anexo I (Cap. II) e a coluna UNIDADE do Anexo II dão o conjunto de unidades e o aninhamento textual (Órgão → Departamento/Assessoria/Secretaria → Coordenação-Geral → Coordenação → Divisão → Serviço). A indentação/ordem do Anexo II fornece o `cod_unidade_pai` do nó.
+- **Nível hierárquico → par (tipo-de-unidade, código CCE/FCE), não denominação isolada.** A denominação sozinha **não** determina o degrau: `Chefe` é `FCE 1.07` numa Divisão e `FCE 1.05` num Serviço — mesma palavra, degraus distintos (verificado no Anexo II do 11.816/2023). O nível é dado pelo **código** (segundo número do CCE/FCE: 1.18 > 1.17 > 1.15 > 1.13 > 1.10 > 1.07 > 1.05), que é **ordinal dentro do grupo** — maior número, cargo mais alto. Essa **estrutura de código é do próprio decreto** (regulada pelo Decreto 10.829/2021, art. 4º do 11.816/2023): o **primeiro dígito é a trilha** (1 = direção/chefia, 2 = assessoramento, 3 = projeto) e o **segundo número é o nível ordinal**. Nota de reconciliação: o schema hoje **não decodifica** isso — grava `funcao_comissionada` como texto cru ("o código já é legível"), e o gerador de massa hardcoda só a **trilha-1**; esta ADR é o que passa a **consumir** a estrutura de código do decreto (derivar `trilha`/`nivel_ordinal`), não um reuso de mecânica de schema pré-existente. A denominação entra como rótulo human-readable, não como chave de ordenação. **Decisão de negócio (Pedro, 2026-07-06):** a sigla CCE/FCE é lida direto pelo usuário — a FOTO **mantém o código cru** (`funcao_comissionada` texto); decodificar para nome/trilha na FOTO fica para depois da validação do RH, se algum dia. A objeção "o schema não decodifica" está fechada: é decisão, não pendência.
+- **Cargo → unidade que chefia.** A posição da linha do Anexo II sob o bloco da unidade dá o vínculo cargo↔unidade-chefiada. É exatamente o insumo que o prespec das Lentes (`2_prespec_lentes_v0_1.md` §3b/§7, Filme-Gestor) descrevia como "árvore de cargos, input Excel": o Excel deixa de ser montado à mão e passa a ser **gerado do Anexo II**.
+
+O domínio resultante é versionado por `(numero_decreto, data_vigencia)`. A redação-base é a do **Decreto 11.816/2023**; o **Decreto 12.503/2025** dá nova redação ao Anexo II (altera quantidades/códigos e cria posições trilha-3) — a derivação carrega qual redação gerou cada linha, e uma revisão futura por novo decreto **acrescenta** uma vigência, não sobrescreve a anterior. Ambas as redações são consideradas vigentes no domínio.
+
+**Contexto.** Duas pendências estavam em espera passiva, ambas por dependência de um acesso que não chegou. (1) A estrutura de referência de unidades (hoje a tabela `dom_unidade_eorg`, carregada por planilha SIORG/E-Org já reconciliada — "Q2 lifecycle" no `seed_dominios.sql`) aguardava doc/acesso SIORG. (2) A árvore de cargos que alimenta o Filme-Gestor (`2_prespec_lentes_v0_1.md` §3b) estava descrita como "input Excel" sem fonte definida. O decreto de estrutura regimental é público, estável (muda por decreto, na ordem de anos), e contém o esqueleto de cargos-função e o aninhamento de unidades por construção. Derivá-lo por regra fecha as duas pendências **sem esperar o SIORG** e sem catálogo manual. *(Os campos `cod_unidade_autorizadora`/`cod_unidade_executora`, o `dom_unidade_siorg` e o `3_lifecycle_mdm.mermaid` citados no desenho original desta decisão são artefatos do lado Project/design — não implementados neste corpus; a tabela que existe aqui é `dom_unidade_eorg`.)*
+
+Esta decisão **supersede parcialmente** o enquadramento da questão Q2 do lifecycle (Project-side), que dizia "SIORG/E-Org é tabela de domínio externo, usada na validação/reconciliação — **não é fonte de ingestão**". A partir daqui, a **estrutura de referência do decreto** É um ponto de ingestão (fluxo próprio, versionado). Isso **não** promove SIORG a fonte de ingestão nem altera o E-Org: a lotação viva pessoa↔unidade continua vindo do Sigepe/E-Org (`dom_unidade_eorg`) e a reconciliação continua sendo requisito. O que muda é só a origem do **esqueleto fixo** de unidades e cargos — que passa do "carrega planilha à mão" para "deriva do decreto".
+
+**Opções consideradas.**
+1. **Aguardar acesso SIORG e carregar a estrutura de lá.** Rejeitada — bloqueia duas pendências num acesso sem data; e o SIORG dá a estrutura viva, que para o esqueleto fixo é mais do que se precisa hoje. O esqueleto do decreto basta para o Filme-Gestor e para a reconciliação.
+2. **Transcrever o Anexo II à mão num YAML versionado, sem parser.** Viável e auditável linha a linha; vence se o horizonte é um órgão só e revisão rara. Rejeitada como decisão porque o piloto é declaradamente "o precedente do modelo de identidade da plataforma" — reprocessar decretos de vários órgãos é horizonte real, e aí o parser ganha. **Absorvida como fallback:** enquanto o parser não existe, o seed inicial pode ser o YAML transcrito, desde que carregue `(numero_decreto, data_vigencia)` desde a primeira linha.
+3. **Derivação por regra do decreto, versionada por vigência, como ponto de ingestão.** Escolhida.
+
+**Resultado.** Novo ponto de ingestão de estrutura, alimentado do decreto, produzindo o domínio **`dom_estrutura_decreto`** (schema v0.16) — tabela separada de `dom_unidade_eorg` de propósito (esqueleto de referência × lotação viva reconciliada), versionada por `(numero_decreto, data_vigencia)` e carregando `trilha`/`nivel_ordinal` derivados do código de chefia. Fecha a fonte da "árvore de cargos" do Filme-Gestor (`2_prespec_lentes` §3b). **Invariante:** a derivação nunca cristaliza a redação vigente sem carimbar qual decreto/vigência a gerou — mesma disciplina de *ruleset version* dos score views; uma revisão por novo decreto acrescenta vigência, não reescreve história. **Fronteira mantida:** o decreto entrega o esqueleto cargo-função↔unidade (o galho); **não** entrega `matrícula → unidade` (lotação viva) nem `cpf → cpf` (chefia pessoa a pessoa). Para o Filme-Gestor, `listaServidores` (uorg → CPFs lotados) continua necessário por cima da árvore derivada. A reconciliação do órfão estrutural (KR 2.1) ganha um **segundo espelho** (`vw_orfao_estrutura_decreto`): unidade que existe no decreto mas não no E-Org, e vice-versa. Decisão da mesa de engenharia (Tech Lead), 2026-07-06.
+
+**Pendências (não bloqueiam o fechamento):**
+- **Parser vs. seed YAML transcrito** — adiado; enquanto o parser do Anexo II não existe, o seed inicial é o YAML transcrito (na demo, `gerador/decreto_animalizado_v1.yaml`), desde que carregue `(numero_decreto, data_vigencia)` desde a primeira linha (fallback já absorvido acima).
+- **Trilhas 2 e 3 fora do escopo** — o esqueleto derivado modela só a **trilha-1** (linha de direção/chefia). Assessoramento (2.xx) e projeto (3.xx, ex.: `FCE 3.10`/`3.07` criados pelo 12.503/2025) ficam catalogados como fora do retrofit.
+- **Ingestão do decreto real (ABIN) × demo animalizada** — nesta leva o loop fecha **na ficção** (Reino Animal, decreto animalizado, duas vigências no `dom_estrutura_decreto`). A ingestão do Anexo II do decreto real fica documentada como caminho de deployment, não implementada.
+
+*Campos de schema e forma do domínio (colunas de vigência; parser vs. seed YAML) são consequência desta ADR e entram no catálogo/schema — o catálogo é o "o quê", esta ADR é o "porquê".*
 
 ---
 

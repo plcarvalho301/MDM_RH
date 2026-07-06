@@ -5,8 +5,9 @@
 # TODOS os parametros AJUSTAVEIS do gerador vivem AQUI (Secao 9 da spec + os
 # comportamentos herdados do gerador v0.1). O que NAO vive aqui e MODELO, nao
 # parametro: as 43 unidades, o quadro FCE trilha-1 (decreto animalizado) e a
-# escada de niveis estao no gen_massa.py — nomes de unidade sao editaveis la,
-# a estrutura porte x quantidade nao (spec Secoes 2-4).
+# escada de niveis vivem em gerador/decreto_animalizado_v1.yaml (ADR-013,
+# versionado por vigencia; a base 11.816/2023 gera a massa) — nomes de unidade
+# sao editaveis la, a estrutura porte x quantidade e a ORDEM nao (spec Secoes 2-4).
 #
 # GRAO / FRONTEIRA DE TABELA (schema v0.6 manda):
 #   - `servidor` = grao VINCULO (1 linha por matricula). NAO tem sexo.
