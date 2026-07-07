@@ -1,7 +1,17 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// MDM-RH — CATÁLOGO DE EVENTOS  (v1.3, rascunho de trabalho)
+// MDM-RH — CATÁLOGO DE EVENTOS  (v1.4, rascunho de trabalho)
 // Catálogo PRINCIPAL do event store. Sub-domínios: cadastro, vinculos, intercorrencias, compensacao, jornada (+ desempenho/capacidades no catalogo_estendido).
-// Data: 2026-06-22 | v1.1: 2026-07-05 | v1.2: 2026-07-05 | v1.3: 2026-07-05
+// Data: 2026-06-22 | v1.1: 2026-07-05 | v1.2: 2026-07-05 | v1.3: 2026-07-05 | v1.4: 2026-07-07
+//
+// CHANGELOG v1.4 (ADR-014 — proveniência do afastamento multi-fonte):
+//   - AFASTAMENTO: obs reafirma consultaDadosAfastamentoHistorico (§4.21) como fonte
+//     ÚNICA do evento; shape confirmado no WSDL (ArrayOfArrayDadosAfastamento) —
+//     a tabela de rubricas na página de §4.21 do PDF era deslize de diagramação
+//     (saída de §4.20 deslocada). §4.1 (consultaDadosAfastamento, vigente) é
+//     face-FOTO, nunca evento. API Ocorrências (write) fora da ingestão.
+//   - CONTRIBUICAO_PSS.afastamentos: obs fecha a proveniência (antes "ADR aberta
+//     prespec §7.1") — array 4.22 é ATRIBUTO do payload PSS, não evento espelho;
+//     qual fonte é autoritativa por face está FECHADO em ADR-014.
 //
 // CHANGELOG v1.3 (reconciliação do Project — risco 1b):
 //   - DESLIGAMENTO motivos 29/37 (redistribuição): resultado passa de texto livre
@@ -225,8 +235,11 @@ tipo_evento_dom:
       UM tipo de evento; o MOTIVO (cód. S-2230) está no payload e referencia
       dom_afastamento, que carrega conta_efetivo_exercicio (KR 2.2) e o impacto
       previdenciário POR motivo. Fonte histórica COMPLETA: consultaDadosAfastamento-
-      Historico (datado, ingestão direta — NÃO é buraco). Inclui os ~20 motivos da
-      Tabela de Domínios (doença, maternidade, licenças, disponibilidade cód.31, etc).
+      Historico (§4.21, datado, ingestão direta — NÃO é buraco). Shape confirmado no
+      WSDL (2026-07-07): devolve ArrayOfArrayDadosAfastamento; a tabela de rubricas
+      impressa na página de §4.21 do PDF era deslize de diagramação (saída de §4.20).
+      Proveniência multi-fonte fechada em ADR-014. Inclui os ~20 motivos da Tabela de
+      Domínios (doença, maternidade, licenças, disponibilidade cód.31, etc).
 
   // ── CESSÃO ───────────────────────────────────────────────────────────────────
   - cod_tipo_evento: CESSAO
@@ -454,7 +467,9 @@ payloads:
           SE SOBREPÕE ao evento AFASTAMENTO (intercorrencias) — mesmo fato, dois
           espelhos (4.1 vigente × 4.22 PSS). NÃO duplicar como evento; aqui só
           entra como atributo do payload PSS p/ o cálculo de dias líquidos. Qual
-          fonte é autoritativa é proveniência multi-fonte, ADR aberta (prespec §7.1).
+          fonte é autoritativa: FECHADO por ADR-014 — o evento AFASTAMENTO vem só
+          da 4.21 (histórico); 4.1 é face-FOTO; este array (4.22) é atributo. Não
+          há concorrência de fonte na mesma face.
         item:
           - { campo: cod_ocorrencia,  tipo: int,  obrig: false }
           - { campo: desc_ocorrencia, tipo: text, obrig: false }
