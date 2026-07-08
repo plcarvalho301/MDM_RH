@@ -26,6 +26,8 @@ from datetime import date, datetime, timedelta, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import trajetorias as traj
 from trajetorias import add_meses
+import siape_envelope as siape
+import emissor_siape as emissor
 
 import yaml
 
@@ -164,6 +166,10 @@ def main():
     ap.add_argument("--sem-pss", action="store_true")
     ap.add_argument("--sem-lixo", action="store_true")
     ap.add_argument("--valida", action="store_true")
+    ap.add_argument("--formato", choices=("loader", "siape"), default="loader",
+                    help="loader=CSV interno+load_eventos.sql (default); siape=envelope SOAP das APIs SIAPE (Card 3)")
+    ap.add_argument("--injeta-defeito", choices=siape.DEFEITOS, default=None,
+                    help="corrompe UMA ocorrencia do envelope (so --formato siape) — prova degradacao graciosa do conector (ADR-009)")
     a = ap.parse_args()
 
     os.makedirs(a.out, exist_ok=True)
@@ -262,7 +268,26 @@ def main():
         if div:
             sys.exit(1)
 
-    # Escrita (formato = envelope; schema v0.13)
+    # Escrita — camada de SERIALIZACAO (--formato). 'siape' = envelope SOAP das
+    # APIs SIAPE (Card 3); assimetria das fatias: Emissor A projeta a FOTO
+    # (servidor.csv), Emissor B re-serializa os eventos AFASTAMENTO da carga_base.
+    if a.formato == "siape":
+        xml_func = emissor.emite_funcionais(foto)
+        afast = [dict(zip(Emissor.COLS, l)) for l in em.cargas["carga_base"]["linhas"]
+                 if l[4] == "AFASTAMENTO"]
+        xml_afast = emissor.emite_afastamento(afast)
+        if a.injeta_defeito:
+            xml_func = emissor.aplica_defeito_funcionais(xml_func, a.injeta_defeito)
+        fpf = os.path.join(a.out, "siape_funcionais.xml")
+        fpa = os.path.join(a.out, "siape_afastamento.xml")
+        open(fpf, "w", encoding="utf-8").write(xml_func)
+        open(fpa, "w", encoding="utf-8").write(xml_afast)
+        defe = f" defeito={a.injeta_defeito}" if a.injeta_defeito else ""
+        print(f"[siape] funcionais={len(foto)} vinculos -> {os.path.basename(fpf)} | "
+              f"afastamento={len(afast)} eventos -> {os.path.basename(fpa)}{defe}")
+        return
+
+    # Escrita (formato = loader; schema v0.13)
     manif = {}
     for rot, c in em.cargas.items():
         if not c["linhas"]:
