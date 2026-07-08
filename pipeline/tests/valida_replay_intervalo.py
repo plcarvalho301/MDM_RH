@@ -31,14 +31,14 @@ ALTERACAO_FUNCAO com muda_unidade troca lotacao sem evento) — fica fora.
 O mapa motivo->situacao NAO e hardcoded: vem de dom_motivo_deslig
 (situacao_resultante), que e DADO de dominio — schema v0.8 / seed v0.2 §12.
 
-Uso:
-    python valida_replay_intervalo.py                 # so carga_base (default)
-    python valida_replay_intervalo.py --incluir-lixo  # base + carga_lixo:
+Uso (a partir da raiz do repo):
+    python -m pipeline.tests.valida_replay_intervalo                 # so carga_base (default)
+    python -m pipeline.tests.valida_replay_intervalo --incluir-lixo  # base + carga_lixo:
         o lixo (duplicatas bem-formadas) PASSA LIMPO pelo replay — e a tese
         da ADR-009: a superficie de deteccao e o manifesto/painel, nao a
         validacao; por isso a retirada e por CARGA (detach), nunca por linha.
-    python valida_replay_intervalo.py --nucleo-so     # so situacao_funcional
-    python valida_replay_intervalo.py --corte-futuro  # data_evento <= ref
+    python -m pipeline.tests.valida_replay_intervalo --nucleo-so     # so situacao_funcional
+    python -m pipeline.tests.valida_replay_intervalo --corte-futuro  # data_evento <= ref
 
 ATENCAO --corte-futuro: o replay de REFERENCIA nao filtra fato futuro, e a
 massa v1 (seed 20260705) depende disso — 21 segundos-vinculos do arquetipo
@@ -47,7 +47,7 @@ assim entram ATIVOS na foto. Com o corte ligado, esses 21 caem do universo
 (achado de qualidade do gerador v1, nao do encanamento — candidato a clamp
 do inicia_apos_anos no gerador v1.1).
 
-Le credenciais de loader/.env (env real do sistema tem prioridade).
+Le credenciais de pipeline/loaders/.env (env real do sistema tem prioridade).
 """
 
 import argparse
@@ -62,7 +62,7 @@ import psycopg2.extras
 
 
 # ── conexao (mesma vara de pescar dos smoke tests / carrega_foto) ────────────
-def carrega_env(path=os.path.join("loader", ".env")):
+def carrega_env(path=os.path.join("pipeline", "loaders", ".env")):
     """Le .env simples (KEY=VALUE por linha), sem dependencia de python-dotenv."""
     env = {}
     if os.path.exists(path):
@@ -189,8 +189,8 @@ CAMPOS_EXTRA = ["cod_afastamento_vigente", "funcao_comissionada", "classe", "pad
 
 def main():
     ap = argparse.ArgumentParser(description="Replay ADR-008 contra o Postgres real")
-    ap.add_argument("--cargas", default=os.path.join("gerador", "out", "cargas.json"))
-    ap.add_argument("--foto", default=os.path.join("gerador", "out", "servidor.csv"))
+    ap.add_argument("--cargas", default=os.path.join("geradores", "out", "cargas.json"))
+    ap.add_argument("--foto", default=os.path.join("geradores", "out", "servidor.csv"))
     ap.add_argument("--data-ref", default=None, help="default: data_base do cargas.json")
     ap.add_argument("--incluir-lixo", action="store_true",
                     help="replaya base+lixo (prova ADR-009: lixo passa limpo)")
@@ -255,5 +255,5 @@ if __name__ == "__main__":
     try:
         main()
     except psycopg2.OperationalError as e:
-        print(f"Sem conexao com o Postgres ({e}).\nConfira loader/.env e se o schema v0.8 + cargas foram aplicados.")
+        print(f"Sem conexao com o Postgres ({e}).\nConfira pipeline/loaders/.env e se o schema v0.8 + cargas foram aplicados.")
         sys.exit(1)

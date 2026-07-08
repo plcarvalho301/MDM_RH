@@ -15,7 +15,7 @@
 import json
 from xml.sax.saxutils import escape
 
-import siape_envelope as env
+from pipeline.contrato import siape_envelope as env
 
 
 def _tag(nome, valor):

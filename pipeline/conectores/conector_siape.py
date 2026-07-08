@@ -18,9 +18,9 @@
 # Degradacao graciosa (ADR-009): linha defeituosa vai p/ quarentena (rejeito),
 # loga, NAO aborta a carga — mesmo destino do 'valida' no DAG de ingestao.
 #
-# Uso:
-#   py -3 conector/conector_siape.py funcionais  [--xml ...] [--out ...]
-#   py -3 conector/conector_siape.py afastamento [--xml ...] [--out ...]
+# Uso (a partir da raiz do repo):
+#   py -3 -m pipeline.conectores.conector_siape funcionais  [--xml ...] [--out ...]
+#   py -3 -m pipeline.conectores.conector_siape afastamento [--xml ...] [--out ...]
 # =============================================================================
 import argparse
 import csv
@@ -30,8 +30,7 @@ import sys
 import uuid
 import xml.etree.ElementTree as ET
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "gerador"))
-import siape_envelope as env
+from pipeline.contrato import siape_envelope as env
 
 # Carga de ingestao (deterministica p/ reprodutibilidade — o id_carga real vem do DAG).
 ID_CARGA_INGESTAO = str(uuid.uuid5(uuid.NAMESPACE_URL, "WS_SIAPE:consultaDadosAfastamentoHistorico"))
@@ -219,7 +218,7 @@ def conecta_afastamento(xml_path, out_path):
 
 def main():
     aqui = os.path.dirname(os.path.abspath(__file__))
-    out = os.path.join(aqui, "..", "gerador", "out")
+    out = os.path.join(aqui, "..", "..", "geradores", "out")
     ap = argparse.ArgumentParser(description="Conector SIAPE (Card 6)")
     sub = ap.add_subparsers(dest="face", required=True)
     pa = sub.add_parser("funcionais", help="Conector A: consultaDadosFuncionais -> FOTO")

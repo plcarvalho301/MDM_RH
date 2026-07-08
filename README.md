@@ -51,59 +51,70 @@ já que o conector não consome `jsonb`).
 
 ## Estrutura do repositório
 
+Quatro pastas de responsabilidade única. `geradores/` e tudo sob `pipeline/` são
+**pacotes** Python (`__init__.py`): os scripts rodam como módulos a partir da raiz
+(`python -m geradores.gen_massa`), o que coloca a raiz no `sys.path` e faz os imports
+cross-pacote resolverem sem gambiarra de `sys.path`.
+
 ```
-sql/
-  3_schema_mdm.sql          # schema do golden record (v0.14) — DDL do-zero, fonte da verdade
-  seed_dominios.sql         # carga dos domínios (FK-obrigatórios) ANTES de qualquer dado
-  roteiro_retratacao_adr009.sql  # retratação operacional por DETACH de partição
-gerador/
+geradores/                  # FABRICA dado sintético (massa + SERPRO simulada)
   gen_massa.py              # gera a FOTO (arquétipo-primeiro): servidor.csv + arquétipo
   gerador_eventos.py        # re-roda a MESMA trajetória por vínculo e emite os eventos
   trajetorias.py            # MOTOR ÚNICO de trajetória (usado pelos dois geradores)
+  emissor_siape.py          # SERPRO simulada (Card 3): serializa a massa no envelope SOAP
   semente_trajetorias_v1.yaml    # 14 arquétipos do designer — o coração do fluxo
   config.yaml               # calibração + seed (reprodutibilidade)
-loader/
-  carrega_foto.py           # servidor.csv → tabela servidor (UPSERT, rota de rejeito)
-  .env.example              # modelo de credenciais (o .env real é gitignored)
-tests/
-  valida_replay_intervalo.py     # prova que o replay dos eventos re-deriva a FOTO
+  out/                      # gitignored (massa + XML sintético)
+pipeline/                   # INGESTÃO orquestrada (o DAG e tudo que persiste)
+  contrato/siape_envelope.py     # contrato de fronteira (emissor × conector)
+  conectores/conector_siape.py   # Card 6: parseia o envelope SOAP → FOTO/EVENTO (carimbo ADR-014)
+  loaders/
+    carrega_foto.py         # servidor.csv → tabela servidor (UPSERT, rota de rejeito)
+    .env.example            # modelo de credenciais (o .env real é gitignored)
+  tests/
+    valida_replay_intervalo.py   # prova que o replay dos eventos re-deriva a FOTO
+    valida_roundtrip_siape.py    # round-trip emissor→conector (offline, sem DB)
+banco/                      # ESTADO & DDL
+  3_schema_mdm.sql          # schema do golden record (v0.14) — DDL do-zero, fonte da verdade
+  seed_dominios.sql         # carga dos domínios (FK-obrigatórios) ANTES de qualquer dado
+  roteiro_retratacao_adr009.sql  # retratação operacional por DETACH de partição
 docs/
   1_adr_mdm.md              # decisões de arquitetura (ADR-001..011 + Seção 2 em aberto)
   3_catalogo_eventos_v1.yaml     # catálogo de eventos (v1.3) — o "o quê" (schema vivo)
   4_gerador_bichos_v0_1.md  # mini-doc do produto gerador (v0.2)
   2_*, 3_*                  # prespec das lentes, descritores, massa, solicitação
   handoff_*.md              # histórico de sessões (handoffs entre Project e Code)
-beta/                       # encanamento mínimo inicial do eixo FOTO (smoke-test histórico)
 ```
 
-> **Dados não são versionados.** A massa gerada (`gerador/out/`, CSVs, `load_eventos.sql`)
-> e as credenciais (`loader/.env`) são gitignored — a massa é reprodutível pelos geradores.
+> **Dados não são versionados.** A massa gerada (`geradores/out/`, CSVs, `load_eventos.sql`)
+> e as credenciais (`pipeline/loaders/.env`) são gitignored — a massa é reprodutível pelos geradores.
 
 ---
 
 ## Rodar do zero
 
-Requer PostgreSQL 18 e Python 3 (`pip install pyyaml psycopg`). Copie
-`loader/.env.example` para `loader/.env` e ajuste as credenciais.
+Requer PostgreSQL 18 e Python 3 (`pip install pyyaml psycopg2-binary`). Copie
+`pipeline/loaders/.env.example` para `pipeline/loaders/.env` e ajuste as credenciais.
+Os comandos Python rodam como **módulos a partir da raiz** (`python -m ...`).
 
 ```bash
 # 1. Banco: schema + domínios-base PRIMEIRO (os geradores leem as regras deles)
-psql -d mdm_rh -f sql/3_schema_mdm.sql -f sql/seed_dominios.sql
+psql -d mdm_rh -f banco/3_schema_mdm.sql -f banco/seed_dominios.sql
 
 # 2. FOTO canônica (arquétipo-primeiro) + seeds de unidade/função
-python gerador/gen_massa.py --config gerador/config.yaml --outdir gerador/out
-psql -d mdm_rh -f gerador/out/seed_unidades_reino_animal.sql \
-               -f gerador/out/seed_funcao_reino_animal.sql
+python -m geradores.gen_massa --config geradores/config.yaml --outdir geradores/out
+psql -d mdm_rh -f geradores/out/seed_unidades_reino_animal.sql \
+               -f geradores/out/seed_funcao_reino_animal.sql
 
 # 3. EVENTOS: re-roda as MESMAS trajetórias e emite (base+folha+pss+lixo)
-python gerador/gerador_eventos.py --valida
+python -m geradores.gerador_eventos --valida
 
 # 4. Carrega FOTO e EVENTOS (load_eventos.sql já faz o REFRESH das 4 MVs ao final)
-python loader/carrega_foto.py --csv gerador/out/servidor.csv
-( cd gerador/out && psql -d mdm_rh -f load_eventos.sql )
+python -m pipeline.loaders.carrega_foto --csv geradores/out/servidor.csv
+( cd geradores/out && psql -d mdm_rh -f load_eventos.sql )
 
 # 5. Valida: o replay dos eventos re-deriva a FOTO
-python tests/valida_replay_intervalo.py     # meta: 0 divergências
+python -m pipeline.tests.valida_replay_intervalo     # meta: 0 divergências
 ```
 
 ---

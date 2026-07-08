@@ -1,8 +1,8 @@
 # credenciais reais — nunca commitar (o .env.example e o modelo versionado)
-loader/.env
+pipeline/loaders/.env
 
 # massa gerada — reprodutivel pelos geradores (dados nunca sao versionados)
-gerador/out/
+geradores/out/
 saida/
 /eventos_carga_*.csv
 /eventos_carga_*.csv.gz

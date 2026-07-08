@@ -7,8 +7,8 @@
 # Este modulo E o CONTRATO DE FRONTEIRA — e SO isso: o vocabulario que os DOIS
 # lados compartilham (namespaces, formato de valor, mapa tag<->coluna, carimbo,
 # catalogo de defeitos). Nao emite nem parseia nada.
-#   - Card 3 (emissor)  -> gerador/emissor_siape.py  produz o envelope daqui.
-#   - Card 6 (conector) -> conector/conector_siape.py consome o envelope daqui.
+#   - Card 3 (emissor)  -> geradores/emissor_siape.py          produz o envelope daqui.
+#   - Card 6 (conector) -> pipeline/conectores/conector_siape.py consome o envelope daqui.
 # Um so lugar define o shape; se o contrato muda, muda aqui e os dois lados seguem.
 # So stdlib: importavel offline, sem DB, sem API viva (o ponto dos cards a/b).
 # =============================================================================

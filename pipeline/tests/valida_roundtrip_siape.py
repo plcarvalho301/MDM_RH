@@ -12,7 +12,7 @@
 #     assert2 replay(rest+eventos') == FOTO em cod_afastamento_vigente/situacao [juiz ADR-008]
 #
 # Os cenarios c/d (SERPRO real) usam o MESMO conector — fora deste teste (go-live).
-# Uso: py -3 tests/valida_roundtrip_siape.py [--foto ...] [--eventos-base ...] [--sem-db]
+# Uso (a partir da raiz do repo): py -3 -m pipeline.tests.valida_roundtrip_siape [--foto ...] [--eventos-base ...] [--sem-db]
 # =============================================================================
 import argparse
 import csv
@@ -21,13 +21,11 @@ import os
 import sys
 from datetime import date
 
-RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(RAIZ, "gerador"))
-sys.path.insert(0, os.path.join(RAIZ, "conector"))
-import siape_envelope as siape
-import emissor_siape as emissor
-import gerador_eventos as gen
-import conector_siape as con
+RAIZ = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from pipeline.contrato import siape_envelope as siape
+from geradores import emissor_siape as emissor
+from geradores import gerador_eventos as gen
+from pipeline.conectores import conector_siape as con
 
 
 def _le_csv(caminho):
@@ -120,7 +118,7 @@ def roundtrip_b(foto, eventos_base, regras):
 
 
 def main():
-    out = os.path.join(RAIZ, "gerador", "out")
+    out = os.path.join(RAIZ, "geradores", "out")
     ap = argparse.ArgumentParser(description="Round-trip SIAPE (Cards 3+6, a/b) offline")
     ap.add_argument("--foto", default=os.path.join(out, "servidor.csv"))
     ap.add_argument("--eventos-base", default=os.path.join(out, "eventos_carga_base.csv"))

@@ -18,16 +18,15 @@
 #   carga_pss   = CONTRIBUICAO_PSS (2a fonte da Calculadora, 4.22; --sem-pss desliga)
 #   carga_lixo  = fixture de RETRATACAO OPERACIONAL (30 duplicatas, --sem-lixo desliga)
 #
-# Uso: python gerador_eventos.py [--foto gerador/out/servidor.csv] [--out gerador/out] --valida
+# Uso (a partir da raiz do repo): python -m geradores.gerador_eventos [--foto geradores/out/servidor.csv] [--out geradores/out] --valida
 # =============================================================================
 import argparse, csv, json, os, random, sys, uuid
 from datetime import date, datetime, timedelta, timezone
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import trajetorias as traj
-from trajetorias import add_meses
-import siape_envelope as siape
-import emissor_siape as emissor
+from geradores import trajetorias as traj
+from geradores.trajetorias import add_meses
+from pipeline.contrato import siape_envelope as siape
+from geradores import emissor_siape as emissor
 
 import yaml
 

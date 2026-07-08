@@ -69,7 +69,7 @@ def rng_vinculo(seed, matricula, salt=0):
 
 # ── regras de modelo (dado, nao codigo — decisao #5) ─────────────────────────
 def carrega_env(path=None):
-    path = path or os.path.join(os.path.dirname(__file__), "..", "loader", ".env")
+    path = path or os.path.join(os.path.dirname(__file__), "..", "pipeline", "loaders", ".env")
     env = {}
     if os.path.exists(path):
         for linha in open(path, encoding="utf-8"):

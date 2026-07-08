@@ -22,8 +22,9 @@
 #   a FK (nao existe afastamento de codigo vazio). Tratado em `_null_if_blank`.
 #
 # USO:
-#   python carrega_foto.py --csv ../gerador/out/servidor.csv              # carga real
-#   python carrega_foto.py --csv ../gerador/out/servidor.csv --dry-run    # so valida/classifica, sem DB
+#   (a partir da raiz do repo)
+#   python -m pipeline.loaders.carrega_foto --csv geradores/out/servidor.csv            # carga real
+#   python -m pipeline.loaders.carrega_foto --csv geradores/out/servidor.csv --dry-run  # so valida/classifica, sem DB
 #
 # CONEXAO: le de variaveis de ambiente (.env — ver .env.example neste dir):
 #   PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD

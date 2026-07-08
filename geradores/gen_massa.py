@@ -42,7 +42,7 @@
 #   nascimento -> ingresso -> tempo de casa -> classe/padrao possivel.
 #   Nao gera ESPECIAL-V com 2 anos de casa; INATIVO exige idade/tempo.
 #
-# Uso: python gen_massa.py  [--config config.yaml] [--outdir out]
+# Uso (a partir da raiz do repo): python -m geradores.gen_massa  [--config ...] [--outdir ...]
 # Dep: PyYAML  (pip install pyyaml --break-system-packages)
 # =============================================================================
 import argparse, csv, random, os, re, sys
@@ -53,8 +53,7 @@ try:
 except ImportError:
     sys.exit("Falta PyYAML: pip install pyyaml --break-system-packages")
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import trajetorias as traj   # motor unico de trajetoria (arquetipos do designer)
+from geradores import trajetorias as traj   # motor unico de trajetoria (arquetipos do designer)
 
 # ============================================================================
 # 1. ESTRUTURA — derivada do decreto ANIMALIZADO versionado (ADR-013).

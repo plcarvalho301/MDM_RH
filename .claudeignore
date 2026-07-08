@@ -1,9 +1,9 @@
 # credenciais reais — nunca ler/indexar
-loader/.env
+pipeline/loaders/.env
 
 # massa gerada — reprodutivel pelos geradores; alguns CSVs passam de 100MB
 # (eventos_carga_folha.csv e eventos_carga_pss.csv sozinhos ja sao ~220MB)
-gerador/out/
+geradores/out/
 
 # saidas de teste locais / relatorios de massa
 saida/
