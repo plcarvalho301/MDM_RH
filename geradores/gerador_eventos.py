@@ -271,19 +271,24 @@ def main():
     # APIs SIAPE (Card 3); assimetria das fatias: Emissor A projeta a FOTO
     # (servidor.csv), Emissor B re-serializa os eventos AFASTAMENTO da carga_base.
     if a.formato == "siape":
+        def _eventos(rotulo, tipo):
+            linhas = em.cargas.get(rotulo, {}).get("linhas", [])
+            return [dict(zip(Emissor.COLS, l)) for l in linhas if l[4] == tipo]
+        afast = _eventos("carga_base", "AFASTAMENTO")     # §4.21
+        folha = _eventos("carga_folha", "FECHAMENTO_FOLHA")  # §4.20
+        pss = _eventos("carga_pss", "CONTRIBUICAO_PSS")   # §4.22
         xml_func = emissor.emite_funcionais(foto)
-        afast = [dict(zip(Emissor.COLS, l)) for l in em.cargas["carga_base"]["linhas"]
-                 if l[4] == "AFASTAMENTO"]
-        xml_afast = emissor.emite_afastamento(afast)
         if a.injeta_defeito:
             xml_func = emissor.aplica_defeito_funcionais(xml_func, a.injeta_defeito)
-        fpf = os.path.join(a.out, "siape_funcionais.xml")
-        fpa = os.path.join(a.out, "siape_afastamento.xml")
-        open(fpf, "w", encoding="utf-8").write(xml_func)
-        open(fpa, "w", encoding="utf-8").write(xml_afast)
+        saidas = [("siape_funcionais.xml",  xml_func),                          # consultaDadosFuncionais (FOTO)
+                  ("siape_afastamento.xml", emissor.emite_afastamento(afast)),  # §4.21
+                  ("siape_financeiro.xml",  emissor.emite_financeiro(folha)),   # §4.20
+                  ("siape_pss.xml",         emissor.emite_pss(pss))]            # §4.22
+        for nome_arq, xml in saidas:
+            open(os.path.join(a.out, nome_arq), "w", encoding="utf-8").write(xml)
         defe = f" defeito={a.injeta_defeito}" if a.injeta_defeito else ""
-        print(f"[siape] funcionais={len(foto)} vinculos -> {os.path.basename(fpf)} | "
-              f"afastamento={len(afast)} eventos -> {os.path.basename(fpa)}{defe}")
+        print(f"[siape] funcionais={len(foto)} | afastamento={len(afast)} | "
+              f"folha={len(folha)} | pss={len(pss)} -> siape_*.xml{defe}")
         return
 
     # Escrita (formato = loader; schema v0.13)

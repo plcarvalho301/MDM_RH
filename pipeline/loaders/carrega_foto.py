@@ -121,16 +121,21 @@ def prepara_linha(row: dict) -> dict:
 
 
 def carrega(csv_path: str, dry_run: bool = False):
-    rows_ok, rows_rejeito = [], []
+    """Le servidor.csv e delega a carrega_linhas (reuso: o runner passa linhas do conector)."""
     with open(csv_path, encoding="utf-8") as f:
-        for raw in csv.DictReader(f):
-            ok, motivo = valida(raw)
-            if not ok:
-                rows_rejeito.append((motivo, raw))
-                continue
-            natureza = classifica(raw)
-            assert natureza == "FOTO"  # unico caminho nesta PoC; guard explicito
-            rows_ok.append(prepara_linha(raw))
+        return carrega_linhas(list(csv.DictReader(f)), dry_run=dry_run)
+
+
+def carrega_linhas(raw_rows, dry_run: bool = False):
+    rows_ok, rows_rejeito = [], []
+    for raw in raw_rows:
+        ok, motivo = valida(raw)
+        if not ok:
+            rows_rejeito.append((motivo, raw))
+            continue
+        natureza = classifica(raw)
+        assert natureza == "FOTO"  # unico caminho nesta PoC; guard explicito
+        rows_ok.append(prepara_linha(raw))
 
     print(f"valida:     {len(rows_ok)} ok / {len(rows_rejeito)} rejeitados")
     if rows_rejeito:

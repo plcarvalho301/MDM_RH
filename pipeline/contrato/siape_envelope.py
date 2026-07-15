@@ -91,6 +91,11 @@ def uorg_le(v):
 FUNCIONAIS = [
     ("matricula_funcional",       "matriculaSiape",         "str"),
     ("cpf",                       "cpf",                    "cpf"),
+    # nome/data_nascimento: o consultaDadosFuncionais real traz (a API tem ~69 tags,
+    # so 14 eram consumidas); entram aqui p/ preencher as colunas NOT NULL de `servidor`
+    # que o recorte antigo nao cobria (reconciliacao FOTO). Propaga a emissor+conector.
+    ("nome",                      "nomeServidor",           "str"),
+    ("data_nascimento",           "dataNascimento",         "date"),
     ("cargo",                     "nomeCargo",              "str"),
     ("classe",                    "codClasse",              "str"),
     ("padrao",                    "codPadrao",              "str"),
@@ -117,6 +122,55 @@ AFASTAMENTO = [
     ("cod_afastamento", "codOcorrencia"),
     ("data_inicio",     "dataIni"),   # ISO<->DDMMYYYY
     ("data_fim",        "dataFim"),   # vazio = aberto (vigente)
+]
+
+# ── Carimbos de ingestao FECHAMENTO_FOLHA (§4.20) e CONTRIBUICAO_PSS (§4.22) ──
+# Faces compensacao. Mesma logica do CARIMBO_AFASTAMENTO (ADR-014): a proveniencia
+# viaja no envelope do evento como rastro; fonte = a operacao SOAP de origem.
+CARIMBO_FOLHA = {
+    "fonte": "WS_SIAPE:consultaDadosFinanceirosHistorico",
+    "cod_mecanica": "ingestao",
+    "grau_confianca": "alto",
+}
+CARIMBO_PSS = {
+    "fonte": "WS_SIAPE:listaContribuicoesPSS",
+    "cod_mecanica": "ingestao",
+    "grau_confianca": "alto",
+}
+
+# ── Mapa FECHAMENTO_FOLHA §4.20 (de-para v0.3 §2): rubrica <-> tag ────────────
+# DadosFinanceiros (uma por rubrica). Todas as tags-folha sao xsd:string no WSDL —
+# a COERCAO de tipo e do conector (regra de valor §4.1), o de-para so registra o
+# alvo (kind: int|num|str). So as 5 que o gerador popula; pz/pe/dataAnoMesRubrica
+# entram quando a fonte real trouxer (YAGNI ate la). Wrapper ArrayDadosFinanceiros:
+# matricula, mesAnoPagamento (= mes_competencia, decisao TL 2026-07-14),
+# dadosFinanceiros[]. codigoOrgao descarta (pend. pos-live).
+RUBRICA = [
+    ("cod_rubrica",   "codRubrica",   "int"),
+    ("nome_rubrica",  "nomeRubrica",  "str"),
+    ("valor_rubrica", "valorRubrica", "num"),
+    ("indicador_rd",  "indicadorRD",  "str"),
+    ("numero_seq",    "numeroSeq",    "int"),
+]
+# tipo_fechamento <-> indicadorMovSupl (por-rubrica, esperado homogeneo — decisao
+# TL §5.3). Codigos provisorios, emissor<->conector consistentes.
+# ponytail: de-para provisorio de indicadorMovSupl; confirmar codigo real no go-live.
+MOVSUPL_EMITE = {"normal": "N", "suplementar": "S"}
+MOVSUPL_LE = {v: k for k, v in MOVSUPL_EMITE.items()}
+
+# ── Mapa CONTRIBUICAO_PSS §4.22 (de-para v0.3 §3): escalar <-> tag ────────────
+# ContribuicoesPSS (folha da arvore ano->mes->contribuicao). ano/mes sao NIVEIS da
+# arvore (achatados p/ ano_contribuicao/mes_contribuicao — decisao TL §5.4). Os 3
+# campos novos (percentualRemunerado/remuneracaoConsiderada/remuneracaoInformada)
+# descartam (decisao TL §5.5). matricula NAO tem tag no shape PSS do WSDL — carrego
+# grMatricula no nivel ArrayContribuicoesPSS.
+# ponytail: linkage de matricula provisorio (WSDL PSS nao traz matricula); confirmar live.
+PSS = [
+    ("pss_apurado",              "pssApurado",             "int"),
+    ("pss_informado",            "pssInformado",           "int"),
+    ("remuneracao_pss",          "remuneracaoPss",         "num"),
+    ("remuneracao_pss_ajustada", "remuneracaoPssAjustada", "num"),
+    ("indice_reajuste",          "indiceReajuste",         "int"),
 ]
 
 # ── Catalogo de defeitos (Card 3 injeta, Card 6 degrada) — de-para §C ─────────

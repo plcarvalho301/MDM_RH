@@ -1,0 +1,1904 @@
+<wsdl:definitions targetNamespace="http://servico.wssiapenet">
+<wsdl:types>
+<xsd:schema attributeFormDefault="qualified" elementFormDefault="qualified" targetNamespace="http://tipo.servico.wssiapenet">
+<xsd:complexType name="ArrayDadosFinanceiros">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codigoOrgao" nillable="true" type="xsd:int"/>
+<xsd:element minOccurs="0" name="dadosFinanceiros" nillable="true" type="ns1:ArrayOfDadosFinanceiros"/>
+<xsd:element minOccurs="0" name="matricula" nillable="true" type="xsd:int"/>
+<xsd:element minOccurs="0" name="mesAnoPagamento" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfDadosFinanceiros">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="DadosFinanceiros" nillable="true" type="ns1:DadosFinanceiros"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="DadosFinanceiros">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codRubrica" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataAnoMesRubrica" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="indicadorMovSupl" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="indicadorRD" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeRubrica" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numeroSeq" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="peRubrica" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="pzRubrica" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="valorRubrica" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayDadosSICAJ">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="dadosSICAJ" nillable="true" type="ns1:ArrayOfDadosSICAJ"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfDadosSICAJ">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="DadosSICAJ" nillable="true" type="ns1:DadosSICAJ"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="DadosSICAJ">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codAcao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataAjuizamento" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataTransitoJulgamento" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="indicadorExclusao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="indicadorSituacaoAcao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="matricula" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numAcao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="statusAcaoSICAJ" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="statusAcaoTabela" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="ufAcao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="valorBeneficiarioAcao" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="DadosEnderecoResidencial">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="bairro" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="cep" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codMunicipio" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="complemento" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dddTelefone" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="logradouro" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeMunicipio" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numTelefone" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numero" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="uf" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayDadosAfastamento">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="dadosAfastamentoPorCPF" nillable="true" type="ns1:ArrayOfDadosAfastamentoPorCpf"/>
+<xsd:element minOccurs="0" name="dadosAfastamentoPorMatricula" nillable="true" type="ns1:ArrayOfDadosAfastamentoPorMatricula"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfDadosAfastamentoPorCpf">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="DadosAfastamentoPorCpf" nillable="true" type="ns1:DadosAfastamentoPorCpf"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="DadosAfastamentoPorCpf">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="ocorrencias" nillable="true" type="ns1:ArrayOfDadosOcorrencias"/>
+<xsd:element minOccurs="0" name="reclusao" nillable="true" type="ns1:ArrayOfDadosReclusao"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfDadosOcorrencias">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="DadosOcorrencias" nillable="true" type="ns1:DadosOcorrencias"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="DadosOcorrencias">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codDiplomaAfastamento" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOcorrencia" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataFim" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataIni" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataPublicacaoAfastamento" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="descDiplomaAfastamento" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="descOcorrencia" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numeroDiplomaAfastamento" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfDadosReclusao">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="DadosReclusao" nillable="true" type="ns1:DadosReclusao"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="DadosReclusao">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codDiplomaAfastamento" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataFim" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataIni" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataPublicacaoAfastamento" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="descDiplomaAfastamento" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numeroDiplomaAfastamento" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfDadosAfastamentoPorMatricula">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="DadosAfastamentoPorMatricula" nillable="true" type="ns1:DadosAfastamentoPorMatricula"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="DadosAfastamentoPorMatricula">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="ferias" nillable="true" type="ns1:ArrayOfDadosFerias"/>
+<xsd:element minOccurs="0" name="grMatricula" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="lpa" nillable="true" type="ns1:ArrayOfDadosLpa"/>
+<xsd:element minOccurs="0" name="ocorrencias" nillable="true" type="ns1:ArrayOfDadosOcorrencias"/>
+<xsd:element minOccurs="0" name="reclusao" nillable="true" type="ns1:ArrayOfDadosReclusao"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfDadosFerias">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="DadosFerias" nillable="true" type="ns1:DadosFerias"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="DadosFerias">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="adiantamentoSalarioFerias" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="anoExercicio" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataFim" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataFimAquisicao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataIni" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataInicioAquisicao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataInicioFeriasInterrompidas" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="diasRestantes" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="gratificacaoNatalina" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numeroDaParcela" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="parcelaContinuacaoInterrupcao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="parcelaInterrompida" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="qtdeDias" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfDadosLpa">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="DadosLpa" nillable="true" type="ns1:DadosLpa"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="DadosLpa">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codDiplomaAfastamento" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataFim" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataIni" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataPublicacaoAfastamento" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="descDiplomaAfastamento" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numeroDiplomaAfastamento" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfArrayContribuicoesPSS">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="ArrayContribuicoesPSS" nillable="true" type="ns1:ArrayContribuicoesPSS"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayContribuicoesPSS">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="anoContribuicoesPSS" nillable="true" type="ns1:ArrayOfAnoContribuicoesPSS"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfAnoContribuicoesPSS">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="AnoContribuicoesPSS" nillable="true" type="ns1:AnoContribuicoesPSS"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="AnoContribuicoesPSS">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="ano" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="mes" nillable="true" type="ns1:ArrayOfMesContribuicoesPSS"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfMesContribuicoesPSS">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="MesContribuicoesPSS" nillable="true" type="ns1:MesContribuicoesPSS"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="MesContribuicoesPSS">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="contribuicoesPSS" nillable="true" type="ns1:ContribuicoesPSS"/>
+<xsd:element minOccurs="0" name="mes" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ContribuicoesPSS">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="indiceReajuste" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="percentualRemunerado" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="pssApurado" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="pssInformado" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="remuneracaoConsiderada" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="remuneracaoInformada" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="remuneracaoPss" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="remuneracaoPssAjustada" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="TotalVagasOrgao">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codNatJuridica" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeNatJuridica" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="vagasPorOrgao" nillable="true" type="ns1:ArrayOfVagasOrgao"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfVagasOrgao">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="VagasOrgao" nillable="true" type="ns1:VagasOrgao"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="VagasOrgao">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="funcoesOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="quantVagaFuncaoLivre" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="quantVagaFuncaoOcupada" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="DadosPessoais">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codCor" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codDefFisica" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codEstadoCivil" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codNacionalidade" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codSexo" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataChegBrasil" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataNascimento" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="grupoSanguineo" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nome" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeCor" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeDefFisica" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeEstadoCivil" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeMae" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeMunicipNasc" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeNacionalidade" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomePai" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomePais" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeSexo" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numPisPasep" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="ufNascimento" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfArrayDadosFinanceiros">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="ArrayDadosFinanceiros" nillable="true" type="ns1:ArrayDadosFinanceiros"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayDadosDDP">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="dadosDDP" nillable="true" type="ns1:ArrayOfDadosDDP"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfDadosDDP">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="DadosDDP" nillable="true" type="ns1:DadosDDP"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="DadosDDP">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="categoria" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="classificacaoContabil" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="competencia" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="descricaoRubrica" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nivel" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="rubrica" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="valorRubrica" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="DadosDocumentacao">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="categoriaCarteiraMotorista" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataCarteiraIdentidade" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataComprovanteMilitar" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataExpedicaoCarteiraMotorista" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataPrimExpedCarteiraMotorista" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataTituloEleitor" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataValidadeCarteiraMotorista" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numCPF" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numPisPasep" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numeroCarteiraIdentidade" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numeroCarteiraMotorista" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numeroCarteiraTrabalho" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numeroComprovanteMilitar" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numeroTituloEleitor" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="orgaoCarteiraIdentidade" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="orgaoComprovanteMilitar" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="passaporte" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="registroCarteiraMotorista" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="secaoTituloEleitor" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="serieCarteiraTrabalho" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="serieComprovanteMilitar" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="ufCarteiraIdentidade" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="ufCarteiraMotorista" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="ufCarteiraTrabalho" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="ufTituloEleitor" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="zonaTituloEleitor" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayDadosFuncionais">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="dadosFuncionais" nillable="true" type="ns1:ArrayOfDadosFuncionais"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfDadosFuncionais">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="DadosFuncionais" nillable="true" type="ns1:DadosFuncionais"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="DadosFuncionais">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codAtivFun" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codCargo" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codClasse" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codFuncao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codJornada" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codNovaFuncao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOcorrAposentadoria" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOcorrExclusao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOcorrIngressoOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOcorrIngressoServPublico" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOcorrIsencaoIR" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOcorrPSS" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codPadrao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codSitFuncional" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codUorgExercicio" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codUorgLotacao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codUpag" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codValeTransporte" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codigoOrgaoOrigem" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="cpfChefiaImediata" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataExercicioNoOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataFimOcorrIsencaoIR" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataFimOcorrPSS" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataFimValeAR" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataIngressoFuncao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataIngressoNovaFuncao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataIniOcorrIsencaoIR" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataIniOcorrPSS" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataIniValeAR" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataOcorrAposentadoria" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataOcorrExclusao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataOcorrIngressoOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataOcorrIngressoServPublico" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataUorgExercicio" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataUorgLotacao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="emailChefiaImediata" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="emailInstitucional" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="emailServidor" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="identUnica" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="matriculaSiape" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="modalidadePGD" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeAtivFun" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeCargo" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeChefeUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeClasse" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeFuncao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeJornada" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeNovaFuncao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeOcorrAposentadoria" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeOcorrExclusao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeOcorrIngressoOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeOcorrIngressoServPublico" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeOcorrIsencaoIR" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeOcorrPSS" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeRegimeJuridico" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeSitFuncional" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeUorgExercicio" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeUorgLotacao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeUpag" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="participaPGD" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="percentualTS" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="pontuacaoDesempenho" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="siglaNivelCargo" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="siglaOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="siglaOrgaoOrigem" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="siglaRegimeJuridico" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="siglaUorgExercicio" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="siglaUorgLotacao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="siglaUpag" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="tipoValeAR" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="valorValeTransporte" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfInformacoesAposentadoria">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="InformacoesAposentadoria" nillable="true" type="ns1:InformacoesAposentadoria"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="InformacoesAposentadoria">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="dataAposentadoria" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="orgaoAposentadoria" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="orgaoAtual" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="orgaoTcuAposentadoria" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="orgaoTcuAtual" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="DadosEscolares">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="arrayCursos" nillable="true" type="ns1:ArrayOfDadosCurso"/>
+<xsd:element minOccurs="0" name="arrayTitulacao" nillable="true" type="ns1:ArrayOfDadosTitulacao"/>
+<xsd:element minOccurs="0" name="codEscolaridade" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeEscolaridade" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfDadosCurso">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="DadosCurso" nillable="true" type="ns1:DadosCurso"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="DadosCurso">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codCurso" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeCurso" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfDadosTitulacao">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="DadosTitulacao" nillable="true" type="ns1:DadosTitulacao"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="DadosTitulacao">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codMatricula" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codTitulacao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeTitulacao" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayDadosBancarios">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="dadosBancarios" nillable="true" type="ns1:ArrayOfDadosBancarios"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfDadosBancarios">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="DadosBancarios" nillable="true" type="ns1:DadosBancarios"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="DadosBancarios">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="agencia" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="agenciaOutrosPagtos" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="banco" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="bancoOutrosPagtos" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="contaCorrente" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="contaCorrenteOutrosPagtos" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="matricula" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayDadosRepresentanteLegal">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="dadosRepresentanteLegal" nillable="true" type="ns1:ArrayOfDadosRepresentanteLegal"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfDadosRepresentanteLegal">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="DadosRepresentanteLegal" nillable="true" type="ns1:DadosRepresentanteLegal"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="DadosRepresentanteLegal">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="agencia" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="banco" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="contaCorrente" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="cpf" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="matricula" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nome" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayDadosUorg">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="uorgs" nillable="true" type="ns1:ArrayOfDadosUorg"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfDadosUorg">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="DadosUorg" nillable="true" type="ns1:DadosUorg"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="DadosUorg">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="bairroUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="cepUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codMatricula" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codMunicipioUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOrgaoUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="complementoUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="emailUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="endUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="logradouroUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeMunicipioUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numFaxUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numTelefoneUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numeroUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="siglaUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="ufUorg" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayDadosVinculo">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="dadosVinculos" nillable="true" type="ns1:ArrayOfDadosVinculo"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfDadosVinculo">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="DadosVinculo" nillable="true" type="ns1:DadosVinculo"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="DadosVinculo">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codAtivFun" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codCargo" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codClasse" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codFuncao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codJornada" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codNovaFuncao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOcorrAposentadoria" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOcorrExclusao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOcorrIngressoOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOcorrIngressoServPublico" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOcorrIsencaoIR" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOcorrPSS" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codPadrao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codSitFuncional" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codUorgExercicio" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codUorgLotacao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codUpag" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codValeTransporte" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataFimOcorrIsencaoIR" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataFimOcorrPSS" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataFimValeAR" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataIngressoFuncao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataIngressoNovaFuncao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataIniOcorrIsencaoIR" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataIniOcorrPSS" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataIniValeAR" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataOcorrAposentadoria" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataOcorrExclusao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataOcorrIngressoOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataOcorrIngressoServPublico" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataUorgExercicio" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataUorgLotacao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="identUnica" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="matriculaSiape" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="modalidadePGD" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeAtivFun" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeCargo" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeChefeUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeClasse" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeFuncao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeJornada" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeNovaFuncao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeOcorrAposentadoria" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeOcorrExclusao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeOcorrIngressoOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeOcorrIngressoServPublico" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeOcorrIsencaoIR" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeOcorrPSS" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeRegimeJuridico" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeSitFuncional" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeUorgExercicio" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeUorgLotacao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeUpag" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="participaPGD" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="percentualTS" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="pontuacaoDesempenho" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="siglaNivelCargo" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="siglaOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="siglaRegimeJuridico" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="siglaUorgExercicio" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="siglaUorgLotacao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="siglaUpag" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="tipoValeAR" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="valorValeTransporte" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayDadosDependentes">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="dadosDependentes" nillable="true" type="ns1:ArrayOfDadosDependentes"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfDadosDependentes">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="DadosDependentes" nillable="true" type="ns1:DadosDependentes"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="DadosDependentes">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="arrayBeneficios" nillable="true" type="ns1:ArrayOfBeneficio"/>
+<xsd:element minOccurs="0" name="codCondicao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codGrauParentesco" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="cpf" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="matricula" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nome" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeCondicao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeGrauParentesco" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfBeneficio">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="Beneficio" nillable="true" type="ns1:Beneficio"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="Beneficio">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codBeneficio" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataFim" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataInicio" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeBeneficio" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayDadosPA">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="dadosPA" nillable="true" type="ns1:ArrayOfDadosPA"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfDadosPA">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="DadosPA" nillable="true" type="ns1:DadosPA"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="DadosPA">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="agenciaBeneficiario" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="arrayAlimentadosPA" nillable="true" type="ns1:ArrayOfAlimentadosPA"/>
+<xsd:element minOccurs="0" name="bancoBeneficiario" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="contaBeneficiario" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="cpfBeneficiario" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="matricula" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeBeneficiario" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="valorUltimaPensao" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfAlimentadosPA">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="AlimentadosPA" nillable="true" type="ns1:AlimentadosPA"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="AlimentadosPA">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codVinculoServidor" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeAlimentado" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeVinculoServidor" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfArrayDadosAfastamento">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="ArrayDadosAfastamento" nillable="true" type="ns1:ArrayDadosAfastamento"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayVinculo">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="dadosVinculos" nillable="true" type="ns1:ArrayOfVinculo"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfVinculo">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="Vinculo" nillable="true" type="ns1:Vinculo"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="Vinculo">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="dataFimBeneficio" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataInicioBeneficio" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataOcorrAposentadoria" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataOcorrExclusao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataOcorrIngressoOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataOcorrIngressoServPublico" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeRegimeJuridico" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeSitFuncional" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayPensaoRecebida">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="pensaoRecebida" nillable="true" type="ns1:ArrayOfPensaoRecebida"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfPensaoRecebida">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="PensaoRecebida" nillable="true" type="ns1:PensaoRecebida"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="PensaoRecebida">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="agencia" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="arrayFichaFinanceira" nillable="true" type="ns1:ArrayFichaFinanceira"/>
+<xsd:element minOccurs="0" name="banco" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codParentesco" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="conta" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="cotaPensao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="cpfIntituidor" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="cpfRepresentanteLegal" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="matricula" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="naturezaPensao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeInstituidor" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeParentesco" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeRepresentanteLegal" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeTipoPensao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="orgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="tipoPensao" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayFichaFinanceira">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="data" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="fichaFinaceiraBeneficiario" nillable="true" type="ns1:ArrayOfFichaFinaceiraBeneficiario"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfFichaFinaceiraBeneficiario">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="FichaFinaceiraBeneficiario" nillable="true" type="ns1:FichaFinaceiraBeneficiario"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="FichaFinaceiraBeneficiario">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codIdentCempFuncao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codRubrica" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codSistemaClassifCempFuncao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codigoAssunto" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataAnoMesRubrica" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="indicadorMovSupl" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="indicadorRD" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeRubrica" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numeroSeq" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="peRubrica" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="pzRubrica" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="valorRubrica" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfCargoPca">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="CargoPca" nillable="true" type="ns1:CargoPca"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="CargoPca">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codigoCargo" nillable="true" type="xsd:int"/>
+<xsd:element minOccurs="0" name="codigoOrgao" nillable="true" type="xsd:int"/>
+<xsd:element minOccurs="0" name="codigoVaga" nillable="true" type="xsd:int"/>
+<xsd:element minOccurs="0" name="dataFim" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataInicio" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataPublicacaoDlProvimento" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataPublicacaoDlVacancia" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dlProvimentoLegado" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dlVacanciaLegado" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="formaProvimento" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="formaVacancia" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="matriculaSiape" nillable="true" type="xsd:int"/>
+<xsd:element minOccurs="0" name="matriculaSiapecad" nillable="true" type="xsd:int"/>
+<xsd:element minOccurs="0" name="nomeCargo" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeServidor" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numeroDlProvimento" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numeroDlVacancia" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="situacaoPca" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="tipoDlProvimento" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="tipoDlVacancia" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayPensoesInstituidas">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="pensoesInstituidas" nillable="true" type="ns1:ArrayOfPensoesInstituidas"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfPensoesInstituidas">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="PensoesInstituidas" nillable="true" type="ns1:PensoesInstituidas"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="PensoesInstituidas">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="agencia" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="arrayFichaFinanceira" nillable="true" type="ns1:ArrayFichaFinanceira"/>
+<xsd:element minOccurs="0" name="banco" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codParentesco" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="conta" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="cotaPensao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="cpfPensionista" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="cpfRepresentanteLegal" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="matriculaPensionista" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="naturezaPensao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeParentesco" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomePensionista" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeRepresentanteLegal" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeTipoPensao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="orgaoPensionista" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="tipoPensao" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+</xsd:schema>
+<xsd:schema attributeFormDefault="qualified" elementFormDefault="qualified" targetNamespace="http://entidade.wssiapenet">
+<xsd:complexType name="Pensionista">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="bairro" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="cep" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="cidade" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="faixaEtaria" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="logradouro" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="matriculaBeneficiario" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nome" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numero" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="orgao" nillable="true" type="tns:ArrayOfString"/>
+<xsd:element minOccurs="0" name="sexo" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="uf" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="upag" nillable="true" type="tns:ArrayOfString"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="DadosCurriculo">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="cpf" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="identificUnica" nillable="true" type="xsd:int"/>
+<xsd:element minOccurs="0" name="listaCurso" nillable="true" type="ns2:ArrayOfCursos"/>
+<xsd:element minOccurs="0" name="listaExperienciaProfissional" nillable="true" type="ns2:ArrayOfExperienciaProfissional"/>
+<xsd:element minOccurs="0" name="listaFormacaoAcademica" nillable="true" type="ns2:ArrayOfFormacaoAcademica"/>
+<xsd:element minOccurs="0" name="listaIdiomas" nillable="true" type="ns2:ArrayOfIdiomas"/>
+<xsd:element minOccurs="0" name="listaParticipacaoComissoes" nillable="true" type="ns2:ArrayOfParticipacaoComissoes"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfFormacaoAcademica">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="FormacaoAcademica" nillable="true" type="ns2:FormacaoAcademica"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="FormacaoAcademica">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codigo" nillable="true" type="xsd:int"/>
+<xsd:element minOccurs="0" name="curso" nillable="true" type="ns2:Curso"/>
+<xsd:element minOccurs="0" name="dataConclusao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="identificUnica" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="instituicao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nivelEscolaridade" nillable="true" type="ns2:NivelEscolaridade"/>
+<xsd:element minOccurs="0" name="situacao" nillable="true" type="ns2:Situacao"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="NivelEscolaridade">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codigo" nillable="true" type="xsd:int"/>
+<xsd:element minOccurs="0" name="nome" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="Situacao">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codigo" nillable="true" type="xsd:int"/>
+<xsd:element minOccurs="0" name="nome" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="Curso">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codCurso" nillable="true" type="xsd:int"/>
+<xsd:element minOccurs="0" name="nomeCurso" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfIdiomas">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="Idiomas" nillable="true" type="ns2:Idiomas"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="Idiomas">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codigo" nillable="true" type="xsd:int"/>
+<xsd:element minOccurs="0" name="identificUnica" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="idiomasDesc" nillable="true" type="ns2:IdiomasDesc"/>
+<xsd:element minOccurs="0" name="idiomasEscreve" nillable="true" type="ns2:IdiomasDominio"/>
+<xsd:element minOccurs="0" name="idiomasFala" nillable="true" type="ns2:IdiomasDominio"/>
+<xsd:element minOccurs="0" name="idiomasLe" nillable="true" type="ns2:IdiomasDominio"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="IdiomasDominio">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codigo" nillable="true" type="xsd:int"/>
+<xsd:element minOccurs="0" name="nome" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="IdiomasDesc">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codigo" nillable="true" type="xsd:int"/>
+<xsd:element minOccurs="0" name="nome" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfExperienciaProfissional">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="ExperienciaProfissional" nillable="true" type="ns2:ExperienciaProfissional"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ExperienciaProfissional">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="area" nillable="true" type="ns2:Area"/>
+<xsd:element minOccurs="0" name="cargo" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codigo" nillable="true" type="xsd:int"/>
+<xsd:element minOccurs="0" name="dataFim" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataInicio" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="identificUnica" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeOrgaoEmpresa" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="projeto" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="tipoAtuacao" nillable="true" type="ns2:TipoAtuacao"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="Area">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codigo" nillable="true" type="xsd:int"/>
+<xsd:element minOccurs="0" name="nome" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="TipoAtuacao">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codigo" nillable="true" type="xsd:int"/>
+<xsd:element minOccurs="0" name="nome" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfParticipacaoComissoes">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="ParticipacaoComissoes" nillable="true" type="ns2:ParticipacaoComissoes"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ParticipacaoComissoes">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codigo" nillable="true" type="xsd:int"/>
+<xsd:element minOccurs="0" name="dataFim" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataInicio" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="identificUnica" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="infoAdicionais" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="tipoDesc" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="tipoParticipacaoComissoes" nillable="true" type="ns2:TipoParticipacaoComissoes"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="TipoParticipacaoComissoes">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codigo" nillable="true" type="xsd:int"/>
+<xsd:element minOccurs="0" name="nome" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfCursos">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="Cursos" nillable="true" type="ns2:Cursos"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="Cursos">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="area" nillable="true" type="ns2:Area"/>
+<xsd:element minOccurs="0" name="cargaHoraria" nillable="true" type="xsd:short"/>
+<xsd:element minOccurs="0" name="codCurso" nillable="true" type="xsd:int"/>
+<xsd:element minOccurs="0" name="dataConclusao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="instituicao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeCurso" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="tipoEvento" nillable="true" type="ns2:TipoEvento"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="TipoEvento">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codigo" nillable="true" type="xsd:int"/>
+<xsd:element minOccurs="0" name="nome" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfUpag">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="Upag" nillable="true" type="ns2:Upag"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="Upag">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codigo" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataUltimaTransacao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nome" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="UorgDados">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="bairro" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="cep" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="cnpjLocalizador" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="cnpjUpag" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codAreaAtuaUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codMunicipio" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codSiorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codSiorgOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codUnidadeSiafi" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codUorgPagadora" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codUorgPai" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codUorgPessoal" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codUpagCentralizadora" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="codigoPais" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="complemento" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="cpfSubstitutoAutoridadeUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="cpfTitularAutoridadeUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="cxPostal" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataCriacaoUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="diplomaLegalCriacaoUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="email" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="identificacaoAntecedentesUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="indicadorUorgAdministrativa" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="indicadorUorgDestIntegracao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="indicadorUorgPessoal" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="indicadorUorgRegimenta" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="indicadorUorgUpag" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="localFisico" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="logradouro" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeAreaAtuaUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeExtendido" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeMunicipio" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomePais" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nomeUorgMaiusculo" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="numero" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="siglaOrgao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="siglaUfMunicipio" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="siglaUorg" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="telefone" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfServidor">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="Servidor" nillable="true" type="ns2:Servidor"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="Servidor">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="cpf" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataUltimaTransacao" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfServidorIndicadorAutorizacaoIRPF">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="ServidorIndicadorAutorizacaoIRPF" nillable="true" type="ns2:ServidorIndicadorAutorizacaoIRPF"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ServidorIndicadorAutorizacaoIRPF">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="cpf" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="indicadorAutorizacao" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="ArrayOfUorg">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="Uorg" nillable="true" type="ns2:Uorg"/>
+</xsd:sequence>
+</xsd:complexType>
+<xsd:complexType name="Uorg">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="codigo" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="dataUltimaTransacao" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="nome" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+</xsd:schema>
+<xsd:schema attributeFormDefault="qualified" elementFormDefault="qualified" targetNamespace="http://servico.wssiapenet">
+<xsd:complexType name="ArrayOfString">
+<xsd:sequence>
+<xsd:element maxOccurs="unbounded" minOccurs="0" name="string" nillable="true" type="xsd:string"/>
+</xsd:sequence>
+</xsd:complexType>
+</xsd:schema>
+<xsd:schema attributeFormDefault="qualified" elementFormDefault="qualified" targetNamespace="http://sql.java">
+<xsd:complexType name="SQLException">
+<xsd:sequence>
+<xsd:element minOccurs="0" name="SQLState" nillable="true" type="xsd:string"/>
+<xsd:element minOccurs="0" name="errorCode" type="xsd:int"/>
+<xsd:element minOccurs="0" name="nextException" nillable="true" type="ns3:SQLException"/>
+</xsd:sequence>
+</xsd:complexType>
+</xsd:schema>
+</wsdl:types>
+<wsdl:message name="consultaDadosAfastamentoHistoricoRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmExistPag" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmTipoVinculo" type="xsd:string"> </wsdl:part>
+<wsdl:part name="anoInicial" type="xsd:string"> </wsdl:part>
+<wsdl:part name="mesInicial" type="xsd:string"> </wsdl:part>
+<wsdl:part name="anoFinal" type="xsd:string"> </wsdl:part>
+<wsdl:part name="mesFinal" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosPessoaisRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmExistPag" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmTipoVinculo" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaHistoricoPCARequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codigoOrgao" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="obterVersaoRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaPensaoRecebidaResponse">
+<wsdl:part name="out" type="ns1:ArrayPensaoRecebida"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="listaServidoresAutorizacaoIRPFResponse">
+<wsdl:part name="out" type="ns2:ArrayOfServidorIndicadorAutorizacaoIRPF"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="verificaVinculoEmpresasResponse">
+<wsdl:part name="out" type="ns1:ArrayVinculo"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaTotalizadorVagasOrgaoRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="dadosUorgRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codUorg" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosPAResponse">
+<wsdl:part name="out" type="ns1:ArrayDadosPA"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosPessoaisResponse">
+<wsdl:part name="out" type="ns1:DadosPessoais"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="listaServidoresResponse">
+<wsdl:part name="out" type="ns2:ArrayOfServidor"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="listaInformacoesAposentadoriaRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="orgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="matricula" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosBancariosResponse">
+<wsdl:part name="out" type="ns1:ArrayDadosBancarios"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosFuncionaisResponse">
+<wsdl:part name="out" type="ns1:ArrayDadosFuncionais"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaHistoricoPCAResponse">
+<wsdl:part name="out" type="ns1:ArrayOfCargoPca"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaPensaoRecebidaRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmExistPag" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmTipoVinculo" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosFinanceirosRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmExistPag" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmTipoVinculo" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosEnderecoResidencialRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmExistPag" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmTipoVinculo" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="listaUorgsResponse">
+<wsdl:part name="out" type="ns2:ArrayOfUorg"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="getPensionistaResponse">
+<wsdl:part name="out" type="ns2:Pensionista"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosEscolaresRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmExistPag" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmTipoVinculo" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosFinanceirosHistoricoRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmExistPag" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmTipoVinculo" type="xsd:string"> </wsdl:part>
+<wsdl:part name="anoInicial" type="xsd:string"> </wsdl:part>
+<wsdl:part name="anoFinal" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="listaContribuicoesPSSResponse">
+<wsdl:part name="out" type="ns1:ArrayOfArrayContribuicoesPSS"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="verificaVinculoEmpresasRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmExistPag" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmTipoVinculo" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosPARequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmExistPag" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmTipoVinculo" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="dadosUorgResponse">
+<wsdl:part name="out" type="ns2:UorgDados"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="obterVersaoResponse">
+<wsdl:part name="out" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosAfastamentoResponse">
+<wsdl:part name="out" type="ns1:ArrayDadosAfastamento"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosUorgResponse">
+<wsdl:part name="out" type="ns1:ArrayDadosUorg"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="listaUpagsRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codUpag" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosFuncionaisRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmExistPag" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmTipoVinculo" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosFinanceirosHistoricoResponse">
+<wsdl:part name="out" type="ns1:ArrayOfArrayDadosFinanceiros"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="getPensionistaRequest">
+<wsdl:part name="cpfPensionista" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosSICAJRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmExistPag" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmTipoVinculo" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosCurriculoRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmExistPag" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmTipoVinculo" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosDocumentacaoRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmExistPag" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmTipoVinculo" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaPensoesInstituidasRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmExistPag" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmTipoVinculo" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosEscolaresResponse">
+<wsdl:part name="out" type="ns1:DadosEscolares"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosUorgRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmExistPag" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmTipoVinculo" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaPensoesInstituidasResponse">
+<wsdl:part name="out" type="ns1:ArrayPensoesInstituidas"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="listaInformacoesAposentadoriaResponse">
+<wsdl:part name="out" type="ns1:ArrayOfInformacoesAposentadoria"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="listaUpagsResponse">
+<wsdl:part name="out" type="ns2:ArrayOfUpag"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaTotalizadorVagasOrgaoResponse">
+<wsdl:part name="out" type="ns1:TotalVagasOrgao"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="listaContribuicoesPSSRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="matricula" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgaoTCU" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="anoInicial" type="xsd:string"> </wsdl:part>
+<wsdl:part name="anoFinal" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosSICAJResponse">
+<wsdl:part name="out" type="ns1:ArrayDadosSICAJ"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosBancariosRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmExistPag" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmTipoVinculo" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosFinanceirosResponse">
+<wsdl:part name="out" type="ns1:ArrayDadosFinanceiros"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosDependentesResponse">
+<wsdl:part name="out" type="ns1:ArrayDadosDependentes"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="listaServidoresRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codUorg" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosCurriculoResponse">
+<wsdl:part name="out" type="ns2:DadosCurriculo"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosRepresentanteLegalRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmExistPag" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmTipoVinculo" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="listaServidoresAutorizacaoIRPFRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="data" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosDependentesRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmExistPag" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmTipoVinculo" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="verificaVinculoRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmExistPag" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmTipoVinculo" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosAfastamentoRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmExistPag" type="xsd:string"> </wsdl:part>
+<wsdl:part name="parmTipoVinculo" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="verificaVinculoResponse">
+<wsdl:part name="out" type="ns1:ArrayDadosVinculo"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="listaUorgsRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codUorg" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="SQLException">
+<wsdl:part name="SQLException" type="ns3:SQLException"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosDDPResponse">
+<wsdl:part name="out" type="ns1:ArrayDadosDDP"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosRepresentanteLegalResponse">
+<wsdl:part name="out" type="ns1:ArrayDadosRepresentanteLegal"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosEnderecoResidencialResponse">
+<wsdl:part name="out" type="ns1:DadosEnderecoResidencial"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosAfastamentoHistoricoResponse">
+<wsdl:part name="out" type="ns1:ArrayOfArrayDadosAfastamento"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosDDPRequest">
+<wsdl:part name="siglaSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nomeSistema" type="xsd:string"> </wsdl:part>
+<wsdl:part name="senha" type="xsd:string"> </wsdl:part>
+<wsdl:part name="cpf" type="xsd:string"> </wsdl:part>
+<wsdl:part name="anoMes" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codOrgao" type="xsd:string"> </wsdl:part>
+<wsdl:part name="nivelSituacaoFuncional" type="xsd:string"> </wsdl:part>
+<wsdl:part name="codigoFolhaDDP" type="xsd:string"> </wsdl:part>
+<wsdl:part name="tipoConsulta" type="xsd:string"> </wsdl:part>
+<wsdl:part name="classificacaoContabil" type="xsd:string"> </wsdl:part>
+</wsdl:message>
+<wsdl:message name="consultaDadosDocumentacaoResponse">
+<wsdl:part name="out" type="ns1:DadosDocumentacao"> </wsdl:part>
+</wsdl:message>
+<wsdl:portType name="ConsultaSIAPE">
+<wsdl:operation name="consultaDadosFinanceiros">
+<wsdl:input name="consultaDadosFinanceirosRequest" message="tns:consultaDadosFinanceirosRequest"> </wsdl:input>
+<wsdl:output name="consultaDadosFinanceirosResponse" message="tns:consultaDadosFinanceirosResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosSICAJ">
+<wsdl:input name="consultaDadosSICAJRequest" message="tns:consultaDadosSICAJRequest"> </wsdl:input>
+<wsdl:output name="consultaDadosSICAJResponse" message="tns:consultaDadosSICAJResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="getPensionista">
+<wsdl:input name="getPensionistaRequest" message="tns:getPensionistaRequest"> </wsdl:input>
+<wsdl:output name="getPensionistaResponse" message="tns:getPensionistaResponse"> </wsdl:output>
+<wsdl:fault name="SQLException" message="tns:SQLException"> </wsdl:fault>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosEnderecoResidencial">
+<wsdl:input name="consultaDadosEnderecoResidencialRequest" message="tns:consultaDadosEnderecoResidencialRequest"> </wsdl:input>
+<wsdl:output name="consultaDadosEnderecoResidencialResponse" message="tns:consultaDadosEnderecoResidencialResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosAfastamento">
+<wsdl:input name="consultaDadosAfastamentoRequest" message="tns:consultaDadosAfastamentoRequest"> </wsdl:input>
+<wsdl:output name="consultaDadosAfastamentoResponse" message="tns:consultaDadosAfastamentoResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosCurriculo">
+<wsdl:input name="consultaDadosCurriculoRequest" message="tns:consultaDadosCurriculoRequest"> </wsdl:input>
+<wsdl:output name="consultaDadosCurriculoResponse" message="tns:consultaDadosCurriculoResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="listaContribuicoesPSS">
+<wsdl:input name="listaContribuicoesPSSRequest" message="tns:listaContribuicoesPSSRequest"> </wsdl:input>
+<wsdl:output name="listaContribuicoesPSSResponse" message="tns:listaContribuicoesPSSResponse"> </wsdl:output>
+<wsdl:fault name="SQLException" message="tns:SQLException"> </wsdl:fault>
+</wsdl:operation>
+<wsdl:operation name="consultaTotalizadorVagasOrgao">
+<wsdl:input name="consultaTotalizadorVagasOrgaoRequest" message="tns:consultaTotalizadorVagasOrgaoRequest"> </wsdl:input>
+<wsdl:output name="consultaTotalizadorVagasOrgaoResponse" message="tns:consultaTotalizadorVagasOrgaoResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="listaUpags">
+<wsdl:input name="listaUpagsRequest" message="tns:listaUpagsRequest"> </wsdl:input>
+<wsdl:output name="listaUpagsResponse" message="tns:listaUpagsResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="dadosUorg">
+<wsdl:input name="dadosUorgRequest" message="tns:dadosUorgRequest"> </wsdl:input>
+<wsdl:output name="dadosUorgResponse" message="tns:dadosUorgResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosPessoais">
+<wsdl:input name="consultaDadosPessoaisRequest" message="tns:consultaDadosPessoaisRequest"> </wsdl:input>
+<wsdl:output name="consultaDadosPessoaisResponse" message="tns:consultaDadosPessoaisResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosFinanceirosHistorico">
+<wsdl:input name="consultaDadosFinanceirosHistoricoRequest" message="tns:consultaDadosFinanceirosHistoricoRequest"> </wsdl:input>
+<wsdl:output name="consultaDadosFinanceirosHistoricoResponse" message="tns:consultaDadosFinanceirosHistoricoResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosDDP">
+<wsdl:input name="consultaDadosDDPRequest" message="tns:consultaDadosDDPRequest"> </wsdl:input>
+<wsdl:output name="consultaDadosDDPResponse" message="tns:consultaDadosDDPResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosDocumentacao">
+<wsdl:input name="consultaDadosDocumentacaoRequest" message="tns:consultaDadosDocumentacaoRequest"> </wsdl:input>
+<wsdl:output name="consultaDadosDocumentacaoResponse" message="tns:consultaDadosDocumentacaoResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="listaServidores">
+<wsdl:input name="listaServidoresRequest" message="tns:listaServidoresRequest"> </wsdl:input>
+<wsdl:output name="listaServidoresResponse" message="tns:listaServidoresResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosFuncionais">
+<wsdl:input name="consultaDadosFuncionaisRequest" message="tns:consultaDadosFuncionaisRequest"> </wsdl:input>
+<wsdl:output name="consultaDadosFuncionaisResponse" message="tns:consultaDadosFuncionaisResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="listaInformacoesAposentadoria">
+<wsdl:input name="listaInformacoesAposentadoriaRequest" message="tns:listaInformacoesAposentadoriaRequest"> </wsdl:input>
+<wsdl:output name="listaInformacoesAposentadoriaResponse" message="tns:listaInformacoesAposentadoriaResponse"> </wsdl:output>
+<wsdl:fault name="SQLException" message="tns:SQLException"> </wsdl:fault>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosEscolares">
+<wsdl:input name="consultaDadosEscolaresRequest" message="tns:consultaDadosEscolaresRequest"> </wsdl:input>
+<wsdl:output name="consultaDadosEscolaresResponse" message="tns:consultaDadosEscolaresResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosBancarios">
+<wsdl:input name="consultaDadosBancariosRequest" message="tns:consultaDadosBancariosRequest"> </wsdl:input>
+<wsdl:output name="consultaDadosBancariosResponse" message="tns:consultaDadosBancariosResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosRepresentanteLegal">
+<wsdl:input name="consultaDadosRepresentanteLegalRequest" message="tns:consultaDadosRepresentanteLegalRequest"> </wsdl:input>
+<wsdl:output name="consultaDadosRepresentanteLegalResponse" message="tns:consultaDadosRepresentanteLegalResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="listaServidoresAutorizacaoIRPF">
+<wsdl:input name="listaServidoresAutorizacaoIRPFRequest" message="tns:listaServidoresAutorizacaoIRPFRequest"> </wsdl:input>
+<wsdl:output name="listaServidoresAutorizacaoIRPFResponse" message="tns:listaServidoresAutorizacaoIRPFResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosUorg">
+<wsdl:input name="consultaDadosUorgRequest" message="tns:consultaDadosUorgRequest"> </wsdl:input>
+<wsdl:output name="consultaDadosUorgResponse" message="tns:consultaDadosUorgResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="verificaVinculo">
+<wsdl:input name="verificaVinculoRequest" message="tns:verificaVinculoRequest"> </wsdl:input>
+<wsdl:output name="verificaVinculoResponse" message="tns:verificaVinculoResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosDependentes">
+<wsdl:input name="consultaDadosDependentesRequest" message="tns:consultaDadosDependentesRequest"> </wsdl:input>
+<wsdl:output name="consultaDadosDependentesResponse" message="tns:consultaDadosDependentesResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosPA">
+<wsdl:input name="consultaDadosPARequest" message="tns:consultaDadosPARequest"> </wsdl:input>
+<wsdl:output name="consultaDadosPAResponse" message="tns:consultaDadosPAResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="listaUorgs">
+<wsdl:input name="listaUorgsRequest" message="tns:listaUorgsRequest"> </wsdl:input>
+<wsdl:output name="listaUorgsResponse" message="tns:listaUorgsResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosAfastamentoHistorico">
+<wsdl:input name="consultaDadosAfastamentoHistoricoRequest" message="tns:consultaDadosAfastamentoHistoricoRequest"> </wsdl:input>
+<wsdl:output name="consultaDadosAfastamentoHistoricoResponse" message="tns:consultaDadosAfastamentoHistoricoResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="verificaVinculoEmpresas">
+<wsdl:input name="verificaVinculoEmpresasRequest" message="tns:verificaVinculoEmpresasRequest"> </wsdl:input>
+<wsdl:output name="verificaVinculoEmpresasResponse" message="tns:verificaVinculoEmpresasResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaPensaoRecebida">
+<wsdl:input name="consultaPensaoRecebidaRequest" message="tns:consultaPensaoRecebidaRequest"> </wsdl:input>
+<wsdl:output name="consultaPensaoRecebidaResponse" message="tns:consultaPensaoRecebidaResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="obterVersao">
+<wsdl:input name="obterVersaoRequest" message="tns:obterVersaoRequest"> </wsdl:input>
+<wsdl:output name="obterVersaoResponse" message="tns:obterVersaoResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaHistoricoPCA">
+<wsdl:input name="consultaHistoricoPCARequest" message="tns:consultaHistoricoPCARequest"> </wsdl:input>
+<wsdl:output name="consultaHistoricoPCAResponse" message="tns:consultaHistoricoPCAResponse"> </wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaPensoesInstituidas">
+<wsdl:input name="consultaPensoesInstituidasRequest" message="tns:consultaPensoesInstituidasRequest"> </wsdl:input>
+<wsdl:output name="consultaPensoesInstituidasResponse" message="tns:consultaPensoesInstituidasResponse"> </wsdl:output>
+</wsdl:operation>
+</wsdl:portType>
+<wsdl:binding name="ConsultaSIAPEHttpBinding" type="tns:ConsultaSIAPE">
+<wsdlsoap:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
+<wsdl:operation name="consultaDadosFinanceiros">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="consultaDadosFinanceirosRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="consultaDadosFinanceirosResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosSICAJ">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="consultaDadosSICAJRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="consultaDadosSICAJResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="getPensionista">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="getPensionistaRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="getPensionistaResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+<wsdl:fault name="SQLException">
+<wsdlsoap:fault name="SQLException" use="literal"/>
+</wsdl:fault>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosEnderecoResidencial">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="consultaDadosEnderecoResidencialRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="consultaDadosEnderecoResidencialResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosAfastamento">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="consultaDadosAfastamentoRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="consultaDadosAfastamentoResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosCurriculo">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="consultaDadosCurriculoRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="consultaDadosCurriculoResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="listaContribuicoesPSS">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="listaContribuicoesPSSRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="listaContribuicoesPSSResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+<wsdl:fault name="SQLException">
+<wsdlsoap:fault name="SQLException" use="literal"/>
+</wsdl:fault>
+</wsdl:operation>
+<wsdl:operation name="consultaTotalizadorVagasOrgao">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="consultaTotalizadorVagasOrgaoRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="consultaTotalizadorVagasOrgaoResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="listaUpags">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="listaUpagsRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="listaUpagsResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="dadosUorg">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="dadosUorgRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="dadosUorgResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosPessoais">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="consultaDadosPessoaisRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="consultaDadosPessoaisResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosFinanceirosHistorico">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="consultaDadosFinanceirosHistoricoRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="consultaDadosFinanceirosHistoricoResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosDDP">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="consultaDadosDDPRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="consultaDadosDDPResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosDocumentacao">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="consultaDadosDocumentacaoRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="consultaDadosDocumentacaoResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="listaServidores">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="listaServidoresRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="listaServidoresResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosFuncionais">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="consultaDadosFuncionaisRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="consultaDadosFuncionaisResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="listaInformacoesAposentadoria">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="listaInformacoesAposentadoriaRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="listaInformacoesAposentadoriaResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+<wsdl:fault name="SQLException">
+<wsdlsoap:fault name="SQLException" use="literal"/>
+</wsdl:fault>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosEscolares">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="consultaDadosEscolaresRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="consultaDadosEscolaresResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosBancarios">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="consultaDadosBancariosRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="consultaDadosBancariosResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosRepresentanteLegal">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="consultaDadosRepresentanteLegalRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="consultaDadosRepresentanteLegalResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="listaServidoresAutorizacaoIRPF">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="listaServidoresAutorizacaoIRPFRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="listaServidoresAutorizacaoIRPFResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosUorg">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="consultaDadosUorgRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="consultaDadosUorgResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="verificaVinculo">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="verificaVinculoRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="verificaVinculoResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosDependentes">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="consultaDadosDependentesRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="consultaDadosDependentesResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosPA">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="consultaDadosPARequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="consultaDadosPAResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="listaUorgs">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="listaUorgsRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="listaUorgsResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaDadosAfastamentoHistorico">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="consultaDadosAfastamentoHistoricoRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="consultaDadosAfastamentoHistoricoResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="verificaVinculoEmpresas">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="verificaVinculoEmpresasRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="verificaVinculoEmpresasResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaPensaoRecebida">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="consultaPensaoRecebidaRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="consultaPensaoRecebidaResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="obterVersao">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="obterVersaoRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="obterVersaoResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaHistoricoPCA">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="consultaHistoricoPCARequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="consultaHistoricoPCAResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+<wsdl:operation name="consultaPensoesInstituidas">
+<wsdlsoap:operation soapAction=""/>
+<wsdl:input name="consultaPensoesInstituidasRequest">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:input>
+<wsdl:output name="consultaPensoesInstituidasResponse">
+<wsdlsoap:body use="literal" namespace="http://servico.wssiapenet"/>
+</wsdl:output>
+</wsdl:operation>
+</wsdl:binding>
+<wsdl:service name="ConsultaSIAPE">
+<wsdl:port name="ConsultaSIAPEHttpPort" binding="tns:ConsultaSIAPEHttpBinding">
+<wsdlsoap:address location="https://www1.siapenet.gov.br/WSSiapenet/services/ConsultaSIAPE"/>
+</wsdl:port>
+</wsdl:service>
+</wsdl:definitions>

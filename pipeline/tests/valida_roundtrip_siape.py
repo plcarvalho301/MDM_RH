@@ -77,13 +77,21 @@ def roundtrip_b(foto, eventos_base, regras):
     afast_linha, rejeitos = con.parse_afastamento(
         xml, con.ID_CARGA_INGESTAO, con.DATA_CARGA_INGESTAO)
 
-    # assert1 — identidade de evento (offline, sem DB): mesmos (mat,cod,ini,fim)
-    orig = sorted(_chave_afast(e) for e in afast)
+    # assert1 — §4.21 e SNAPSHOT historico: o emissor coalesce o par abre/fecha (ADR-008)
+    # por chave (mat,cod,data_inicio), vencendo a data_carga mais recente. Comparamos contra
+    # esse snapshot, nao contra o event-stream interno (open+close).
+    snap = {}
+    for e in afast:
+        pl = e["payload"] if isinstance(e["payload"], dict) else json.loads(e["payload"])
+        k = (str(e["matricula_funcional"]), pl.get("cod_afastamento") or "", pl.get("data_inicio") or "")
+        dc = e.get("data_carga") or ""
+        if k not in snap or dc >= snap[k][0]:
+            snap[k] = (dc, e)
+    orig = sorted(_chave_afast(e) for _dc, e in snap.values())
     novo = sorted(_chave_afast(e) for e in afast_linha)
     id_ok = (orig == novo)
-    print(f"[b.1] identidade de evento: {len(afast)} afastamentos, "
-          f"{len(afast_linha)} reconstruidos, {len(rejeitos)} rejeitos -> "
-          f"{'OK' if id_ok else 'FALHA'}")
+    print(f"[b.1] identidade (§4.21 snapshot): {len(afast)} no stream -> {len(snap)} ocorrencias, "
+          f"{len(afast_linha)} reconstruidas, {len(rejeitos)} rejeitos -> {'OK' if id_ok else 'FALHA'}")
     if not id_ok:
         so_orig = set(orig) - set(novo)
         so_novo = set(novo) - set(orig)
@@ -117,14 +125,117 @@ def roundtrip_b(foto, eventos_base, regras):
     return id_ok and r2_ok
 
 
+# ── (c/d) compensacao: FECHAMENTO_FOLHA §4.20 e CONTRIBUICAO_PSS §4.22 ────────
+def _pl(e):
+    return e["payload"] if isinstance(e["payload"], dict) else json.loads(e["payload"])
+
+
+def _norm_rubricas(rs):
+    campos = ("cod_rubrica", "nome_rubrica", "valor_rubrica", "indicador_rd", "numero_seq")
+    return sorted(tuple((k, r.get(k)) for k in campos) for r in rs)
+
+
+def roundtrip_c(folha_events):
+    """(c) FECHAMENTO_FOLHA -> emissor C -> XML §4.20 -> conector C -> eventos'.
+    Compara (matricula, mes_competencia) -> tipo_fechamento + rubricas. mes_pagamento
+    NAO viaja no envelope (decisao TL) — fora da comparacao."""
+    xml = emissor.emite_financeiro(folha_events)
+    novo, rejeitos = con.parse_financeiro(xml)
+    orig = {(str(e["matricula_funcional"]), _pl(e).get("mes_competencia")): e for e in folha_events}
+    got = {(str(e["matricula_funcional"]), _pl(e).get("mes_competencia")): e for e in novo}
+    div = len(set(orig) ^ set(got))
+    for k in set(orig) & set(got):
+        p0, p1 = _pl(orig[k]), _pl(got[k])
+        if p0.get("tipo_fechamento") != p1.get("tipo_fechamento"):
+            div += 1
+        if _norm_rubricas(p0.get("rubricas", [])) != _norm_rubricas(p1.get("rubricas", [])):
+            div += 1
+            if div <= 8:
+                print(f"  [c] DIVERGE {k} rubricas: {p0.get('rubricas')} != {p1.get('rubricas')}")
+    ok = (div == 0 and not rejeitos)
+    print(f"[c] round-trip FECHAMENTO_FOLHA: {len(folha_events)} eventos, {div} divergencias, "
+          f"{len(rejeitos)} rejeitos -> {'OK' if ok else 'FALHA'}")
+    return ok
+
+
+def roundtrip_d(pss_events):
+    """(d) CONTRIBUICAO_PSS -> emissor D -> XML §4.22 -> conector D -> eventos'."""
+    xml = emissor.emite_pss(pss_events)
+    novo, rejeitos = con.parse_pss(xml)
+    chave = lambda e: (str(e["matricula_funcional"]), _pl(e).get("ano_contribuicao"), _pl(e).get("mes_contribuicao"))
+    orig = {chave(e): e for e in pss_events}
+    got = {chave(e): e for e in novo}
+    campos = ("gr_matricula", "ano_contribuicao", "mes_contribuicao", "indice_reajuste",
+              "pss_apurado", "pss_informado", "remuneracao_pss", "remuneracao_pss_ajustada")
+    div = len(set(orig) ^ set(got))
+    for k in set(orig) & set(got):
+        p0, p1 = _pl(orig[k]), _pl(got[k])
+        for c in campos:
+            if p0.get(c) != p1.get(c):
+                div += 1
+                if div <= 8:
+                    print(f"  [d] DIVERGE {k} [{c}]: {p0.get(c)!r} != {p1.get(c)!r}")
+    ok = (div == 0 and not rejeitos)
+    print(f"[d] round-trip CONTRIBUICAO_PSS: {len(pss_events)} eventos, {div} divergencias, "
+          f"{len(rejeitos)} rejeitos -> {'OK' if ok else 'FALHA'}")
+    return ok
+
+
+def _eventos_demo():
+    """Eventos sinteticos p/ o self-check offline (sem corpus/DB). Cobre: multi-competencia
+    e multi-ano por matricula, suplementar, valor negativo (desconto)."""
+    folha = [
+        {"cpf": "11122233344", "matricula_funcional": "1234567", "cod_tipo_evento": "FECHAMENTO_FOLHA",
+         "payload": {"mes_competencia": "202601", "mes_pagamento": "202601", "tipo_fechamento": "normal",
+                     "rubricas": [{"cod_rubrica": 1, "nome_rubrica": "VENCIMENTO BASICO",
+                                   "valor_rubrica": 12345.67, "indicador_rd": "R", "numero_seq": 1},
+                                  {"cod_rubrica": 998, "nome_rubrica": "IRRF",
+                                   "valor_rubrica": -1234.5, "indicador_rd": "D", "numero_seq": 2}]}},
+        {"cpf": "11122233344", "matricula_funcional": "1234567", "cod_tipo_evento": "FECHAMENTO_FOLHA",
+         "payload": {"mes_competencia": "202602", "mes_pagamento": "202603", "tipo_fechamento": "suplementar",
+                     "rubricas": [{"cod_rubrica": 1, "nome_rubrica": "VENCIMENTO BASICO",
+                                   "valor_rubrica": 500.0, "indicador_rd": "R", "numero_seq": 1}]}},
+        {"cpf": "55566677788", "matricula_funcional": "7654321", "cod_tipo_evento": "FECHAMENTO_FOLHA",
+         "payload": {"mes_competencia": "202601", "mes_pagamento": "202601", "tipo_fechamento": "normal",
+                     "rubricas": [{"cod_rubrica": 1, "nome_rubrica": "VENCIMENTO BASICO",
+                                   "valor_rubrica": 9000.0, "indicador_rd": "R", "numero_seq": 1}]}},
+    ]
+    pss = [
+        {"cpf": "11122233344", "matricula_funcional": "1234567", "cod_tipo_evento": "CONTRIBUICAO_PSS",
+         "payload": {"gr_matricula": 1234567, "ano_contribuicao": 2026, "mes_contribuicao": 1,
+                     "indice_reajuste": 1, "pss_apurado": 1358, "pss_informado": 1358,
+                     "remuneracao_pss": 12345.67, "remuneracao_pss_ajustada": 12345.67}},
+        {"cpf": "11122233344", "matricula_funcional": "1234567", "cod_tipo_evento": "CONTRIBUICAO_PSS",
+         "payload": {"gr_matricula": 1234567, "ano_contribuicao": 2025, "mes_contribuicao": 12,
+                     "indice_reajuste": 1, "pss_apurado": 55, "pss_informado": 55,
+                     "remuneracao_pss": 500.0, "remuneracao_pss_ajustada": 500.0}},
+        {"cpf": "55566677788", "matricula_funcional": "7654321", "cod_tipo_evento": "CONTRIBUICAO_PSS",
+         "payload": {"gr_matricula": 7654321, "ano_contribuicao": 2025, "mes_contribuicao": 12,
+                     "indice_reajuste": 1, "pss_apurado": 990, "pss_informado": 990,
+                     "remuneracao_pss": 9000.0, "remuneracao_pss_ajustada": 9000.0}},
+    ]
+    return folha, pss
+
+
 def main():
     out = os.path.join(RAIZ, "geradores", "out")
-    ap = argparse.ArgumentParser(description="Round-trip SIAPE (Cards 3+6, a/b) offline")
+    ap = argparse.ArgumentParser(description="Round-trip SIAPE (Cards 3+6, a/b/c/d) offline")
     ap.add_argument("--foto", default=os.path.join(out, "servidor.csv"))
     ap.add_argument("--eventos-base", default=os.path.join(out, "eventos_carga_base.csv"))
+    ap.add_argument("--eventos-folha", default=os.path.join(out, "eventos_carga_folha.csv"))
+    ap.add_argument("--eventos-pss", default=os.path.join(out, "eventos_carga_pss.csv"))
     ap.add_argument("--sem-db", action="store_true",
                     help="pula o juiz de replay (b.2); roda 100% offline sem Postgres")
+    ap.add_argument("--demo", action="store_true",
+                    help="round-trip sintetico de folha/PSS (c/d) — offline, sem corpus nem DB")
     a = ap.parse_args()
+
+    if a.demo:
+        folha, pss = _eventos_demo()
+        print(f"== Round-trip SIAPE (demo compensacao) — {len(folha)} folha, {len(pss)} PSS ==")
+        ok_c, ok_d = roundtrip_c(folha), roundtrip_d(pss)
+        print(f"== RESULTADO demo: folha {'OK' if ok_c else 'FALHA'} | PSS {'OK' if ok_d else 'FALHA'} ==")
+        sys.exit(0 if (ok_c and ok_d) else 1)
 
     foto = _le_csv(a.foto)
     eventos_base = _le_csv(a.eventos_base)
@@ -138,8 +249,11 @@ def main():
     print(f"== Round-trip SIAPE — {len(foto)} vinculos, {len(eventos_base)} eventos base ==")
     ok_a = roundtrip_a(foto)
     ok_b = roundtrip_b(foto, eventos_base, regras)
-    print(f"== RESULTADO: fatia A {'OK' if ok_a else 'FALHA'} | fatia B {'OK' if ok_b else 'FALHA'} ==")
-    sys.exit(0 if (ok_a and ok_b) else 1)
+    ok_c = roundtrip_c(_le_csv(a.eventos_folha)) if os.path.exists(a.eventos_folha) else True
+    ok_d = roundtrip_d(_le_csv(a.eventos_pss)) if os.path.exists(a.eventos_pss) else True
+    print(f"== RESULTADO: A {'OK' if ok_a else 'FALHA'} | B {'OK' if ok_b else 'FALHA'} | "
+          f"C {'OK' if ok_c else 'FALHA'} | D {'OK' if ok_d else 'FALHA'} ==")
+    sys.exit(0 if (ok_a and ok_b and ok_c and ok_d) else 1)
 
 
 if __name__ == "__main__":

@@ -80,6 +80,17 @@ def _itera(envelope, nome_registro):
             yield el
 
 
+def _cpf_envelope(envelope):
+    """CPF da resposta: consultaDadosAfastamento/Financeiros e listaContribuicoesPSS
+    sao consultas POR-CPF (1 resposta = 1 CPF). O CPF nao vem no payload do evento
+    (a chave e a matricula), so na resposta — o conector o carimba em cada evento
+    (evento.cpf e denormalizado p/ agregacao, ck_ev_cpf exige 11 digitos). So digitos."""
+    for el in envelope.iter():
+        if _local(el.tag) == "cpf":
+            return "".join(ch for ch in (el.text or "") if ch.isdigit())
+    return ""
+
+
 # ── Conector A: consultaDadosFuncionais -> FOTO ──────────────────────────────
 def _le_dados_funcionais(elem):
     """<DadosFuncionais> -> linha FOTO (14 colunas). Degradacao graciosa: tag
@@ -143,6 +154,7 @@ def parse_afastamento(xml_texto, id_carga=ID_CARGA_INGESTAO, data_carga=DATA_CAR
     Alimenta a tabela evento pelo mesmo pipeline (valida->classifica->particao)."""
     eventos, rejeitos = [], []
     for envelope in _envelopes(xml_texto):
+        cpf_env = _cpf_envelope(envelope)
         for elem in _itera(envelope, "DadosAfastamento"):
             d, _presentes = _filhos_texto(elem)
             mat = (d.get("grMatricula") or "").strip()
@@ -150,6 +162,8 @@ def parse_afastamento(xml_texto, id_carga=ID_CARGA_INGESTAO, data_carga=DATA_CAR
             try:
                 if not mat.isdigit():
                     raise LinhaRejeitada(f"grMatricula nao-numerica: {mat!r}", d)
+                if len(cpf_env) != 11:
+                    raise LinhaRejeitada(f"cpf da resposta invalido: {cpf_env!r}", d)
                 ini = env.ddmmyyyy_para_iso(d.get("dataIni", ""))
                 fim = env.ddmmyyyy_para_iso(d.get("dataFim", ""))
                 if not ini:
@@ -160,12 +174,14 @@ def parse_afastamento(xml_texto, id_carga=ID_CARGA_INGESTAO, data_carga=DATA_CAR
             except LinhaRejeitada as r:
                 rejeitos.append({"motivo": r.motivo, "dados": r.dados})
                 continue
-            payload = {"cod_afastamento": cod, "data_inicio": ini, "data_fim": fim}
+            # data_fim vazia = intervalo aberto -> null no payload (NAO ""): a MV
+            # mv_filme_servidor faz (payload->>'data_fim')::date, e ''::date explode; null::date ok.
+            payload = {"cod_afastamento": cod, "data_inicio": ini, "data_fim": fim or None}
             eventos.append({
                 "id_evento": _uuid_evento(mat, cod, ini),
                 "id_carga": id_carga,
                 "matricula_funcional": mat,
-                "cpf": "",  # o CPF nao vem no payload do afastamento; a chave e a matricula
+                "cpf": cpf_env,  # do envelope (resposta por-CPF); chave da serie e a matricula
                 "cod_tipo_evento": "AFASTAMENTO",
                 "data_evento": ini,
                 "payload": json.dumps(payload, ensure_ascii=False),
@@ -174,6 +190,120 @@ def parse_afastamento(xml_texto, id_carga=ID_CARGA_INGESTAO, data_carga=DATA_CAR
                 "grau_confianca": env.CARIMBO_AFASTAMENTO["grau_confianca"],
                 "data_carga": data_carga,
             })
+    return eventos, rejeitos
+
+
+# ── Coercao de tipo (regra de valor §4.1: e do conector, nao do de-para) ─────
+def _coage(v, kind):
+    v = (v or "").strip()
+    if not v:
+        return None
+    if kind == "int":
+        return int(v)
+    if kind == "num":
+        return float(v)
+    return v
+
+
+def _data_evento_comp(ano, mes):
+    """Competencia (ano,mes) -> data_evento = 1o dia do mes seguinte (ISO), como o
+    gerador emite (add_meses(competencia, 1)). O envelope carrega so a competencia."""
+    a, m = int(ano), int(mes)
+    a2, m2 = (a + 1, 1) if m == 12 else (a, m + 1)
+    return f"{a2:04d}-{m2:02d}-01"
+
+
+# ── Conector C: consultaDadosFinanceirosHistorico §4.20 -> FECHAMENTO_FOLHA ───
+def parse_financeiro(xml_texto, id_carga=ID_CARGA_INGESTAO, data_carga=DATA_CARGA_INGESTAO):
+    """Conector C: XML §4.20 -> (eventos FECHAMENTO_FOLHA, rejeitos). Carimbo CARIMBO_FOLHA.
+    1 <ArrayDadosFinanceiros> = 1 (vinculo, competencia); rubricas aninhadas."""
+    eventos, rejeitos = [], []
+    for envelope in _envelopes(xml_texto):
+        cpf_env = _cpf_envelope(envelope)
+        for arr in _itera(envelope, "ArrayDadosFinanceiros"):
+            d, _pres = _filhos_texto(arr)
+            mat = (d.get("matricula") or "").strip()
+            comp = (d.get("mesAnoPagamento") or "").strip()
+            try:
+                if not mat.isdigit():
+                    raise LinhaRejeitada(f"matricula nao-numerica: {mat!r}", d)
+                if len(cpf_env) != 11:
+                    raise LinhaRejeitada(f"cpf da resposta invalido: {cpf_env!r}", d)
+                if len(comp) != 6 or not comp.isdigit():
+                    raise LinhaRejeitada(f"mesAnoPagamento mal-formado: {comp!r}", d)
+                rubricas, tipo_fech = [], "normal"
+                for rub in arr.iter():
+                    if _local(rub.tag) != "DadosFinanceiros":
+                        continue
+                    rd, _ = _filhos_texto(rub)
+                    rubricas.append({campo: _coage(rd.get(tag), kind)
+                                     for campo, tag, kind in env.RUBRICA})
+                    tipo_fech = env.MOVSUPL_LE.get((rd.get("indicadorMovSupl") or "").strip(), "normal")
+            except LinhaRejeitada as r:
+                rejeitos.append({"motivo": r.motivo, "dados": r.dados})
+                continue
+            payload = {"mes_competencia": comp, "tipo_fechamento": tipo_fech, "rubricas": rubricas}
+            eventos.append({
+                "id_evento": str(uuid.uuid5(uuid.NAMESPACE_URL, f"folha:{mat}|{comp}")),
+                "id_carga": id_carga, "matricula_funcional": mat, "cpf": cpf_env,
+                "cod_tipo_evento": "FECHAMENTO_FOLHA",
+                "data_evento": _data_evento_comp(comp[:4], comp[4:]),
+                "payload": json.dumps(payload, ensure_ascii=False),
+                "cod_mecanica": env.CARIMBO_FOLHA["cod_mecanica"],
+                "fonte": env.CARIMBO_FOLHA["fonte"],
+                "grau_confianca": env.CARIMBO_FOLHA["grau_confianca"],
+                "data_carga": data_carga,
+            })
+    return eventos, rejeitos
+
+
+# ── Conector D: listaContribuicoesPSS §4.22 -> CONTRIBUICAO_PSS ───────────────
+def parse_pss(xml_texto, id_carga=ID_CARGA_INGESTAO, data_carga=DATA_CARGA_INGESTAO):
+    """Conector D: XML §4.22 -> (eventos CONTRIBUICAO_PSS, rejeitos). Carimbo CARIMBO_PSS.
+    Arvore ano->mes->contribuicao achatada; matricula de grMatricula (provisorio)."""
+    eventos, rejeitos = [], []
+    for envelope in _envelopes(xml_texto):
+        cpf_env = _cpf_envelope(envelope)
+        for arr in _itera(envelope, "ArrayContribuicoesPSS"):
+            d0, _ = _filhos_texto(arr)
+            mat = (d0.get("grMatricula") or "").strip()
+            for anoel in arr.iter():
+                if _local(anoel.tag) != "AnoContribuicoesPSS":
+                    continue
+                da, _ = _filhos_texto(anoel)
+                ano = (da.get("ano") or "").strip()
+                for mesel in anoel.iter():
+                    if _local(mesel.tag) != "MesContribuicoesPSS":
+                        continue
+                    dm, _ = _filhos_texto(mesel)
+                    mes = (dm.get("mes") or "").strip()
+                    contrib = next((c for c in mesel if _local(c.tag) == "contribuicoesPSS"), None)
+                    cd = _filhos_texto(contrib)[0] if contrib is not None else {}
+                    try:
+                        if not mat.isdigit():
+                            raise LinhaRejeitada(f"grMatricula nao-numerica: {mat!r}", d0)
+                        if len(cpf_env) != 11:
+                            raise LinhaRejeitada(f"cpf da resposta invalido: {cpf_env!r}", d0)
+                        if not (ano.isdigit() and mes.isdigit()):
+                            raise LinhaRejeitada(f"ano/mes PSS mal-formado: {ano!r}/{mes!r}", dm)
+                        payload = {"gr_matricula": int(mat),
+                                   "ano_contribuicao": int(ano), "mes_contribuicao": int(mes)}
+                        for campo, tag, kind in env.PSS:
+                            payload[campo] = _coage(cd.get(tag), kind)
+                    except LinhaRejeitada as r:
+                        rejeitos.append({"motivo": r.motivo, "dados": r.dados})
+                        continue
+                    eventos.append({
+                        "id_evento": str(uuid.uuid5(uuid.NAMESPACE_URL, f"pss:{mat}|{ano}{int(mes):02d}")),
+                        "id_carga": id_carga, "matricula_funcional": mat, "cpf": cpf_env,
+                        "cod_tipo_evento": "CONTRIBUICAO_PSS",
+                        "data_evento": _data_evento_comp(ano, mes),
+                        "payload": json.dumps(payload, ensure_ascii=False),
+                        "cod_mecanica": env.CARIMBO_PSS["cod_mecanica"],
+                        "fonte": env.CARIMBO_PSS["fonte"],
+                        "grau_confianca": env.CARIMBO_PSS["grau_confianca"],
+                        "data_carga": data_carga,
+                    })
     return eventos, rejeitos
 
 

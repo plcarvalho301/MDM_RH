@@ -90,19 +90,30 @@ def emite_funcionais(foto_rows):
 
 # ── B. consultaDadosAfastamentoHistorico §4.21 (EVENTO) ──────────────────────
 def emite_afastamento(afast_events):
-    """Eventos AFASTAMENTO (dicts com matricula_funcional, cpf, payload) ->
-    XML §4.21: 1 consultaDadosAfastamentoHistoricoResponse por CPF,
-    ArrayOfArrayDadosAfastamento (1 ArrayDadosAfastamento por vinculo, serie datada).
-    Mapa (de-para §B.2): cod_afastamento->codOcorrencia, data_inicio->dataIni
-    (ISO->DDMMYYYY), data_fim->dataFim (vazio=aberto), matricula->grMatricula."""
-    por_cpf = {}
+    """Eventos AFASTAMENTO -> XML §4.21 (consultaDadosAfastamentoHistorico).
+    Mapa (de-para §1/§B.2): cod_afastamento->codOcorrencia, data_inicio->dataIni,
+    data_fim->dataFim (vazio=aberto), matricula->grMatricula.
+
+    §4.21 e SNAPSHOT historico: 1 <DadosAfastamento> por ocorrencia (mat,cod,data_inicio),
+    no ESTADO ATUAL. O event-store interno guarda o par abre/fecha (ADR-008); a API nao —
+    entao aqui coalescemos por chave, vencendo a data_carga mais recente. Licenca fechada =>
+    vence o registro de fechamento (com data_fim). Licenca AINDA EM ABERTO (sem fechamento,
+    ou cujo registro recente nao tem data_fim) => permanece aberta (dataFim vazio) — cenario real."""
+    escolhido = {}   # (cpf, mat, cod, data_inicio) -> (data_carga, payload) de maior data_carga
     for e in afast_events:
         pl = e["payload"] if isinstance(e["payload"], dict) else json.loads(e["payload"])
-        por_cpf.setdefault(e["cpf"], {}).setdefault(e["matricula_funcional"], []).append(pl)
+        chave = (e["cpf"], e["matricula_funcional"], pl.get("cod_afastamento"), pl.get("data_inicio"))
+        dc = e.get("data_carga") or ""   # ISO -> comparacao de string e cronologica
+        if chave not in escolhido or dc >= escolhido[chave][0]:
+            escolhido[chave] = (dc, pl)
+    por_cpf = {}
+    for (cpf, mat, _cod, _ini), (_dc, pl) in escolhido.items():
+        por_cpf.setdefault(cpf, {}).setdefault(mat, []).append(pl)
     out = ["<lote>"]
     for cpf, vincs in por_cpf.items():
         out.append(f'  <soap:Envelope xmlns:soap="{env.NS_SOAP}"><soap:Body>')
         out.append(f'    <ns1:consultaDadosAfastamentoHistoricoResponse xmlns:ns1="{env.NS_WRAP}">')
+        out.append("     " + _tag("cpf", cpf))   # resposta e por-CPF; conector carimba os eventos
         out.append(f'     <out><ArrayOfArrayDadosAfastamento xmlns="{env.NS_TIPO}">')
         for mat, series in vincs.items():
             out.append("      <ArrayDadosAfastamento>")
@@ -118,6 +129,86 @@ def emite_afastamento(afast_events):
             out.append("      </ArrayDadosAfastamento>")
         out.append("     </ArrayOfArrayDadosAfastamento></out>")
         out.append("    </ns1:consultaDadosAfastamentoHistoricoResponse>")
+        out.append("  </soap:Body></soap:Envelope>")
+    out.append("</lote>")
+    return "\n".join(out)
+
+
+# ── C. consultaDadosFinanceirosHistorico §4.20 (FECHAMENTO_FOLHA) ─────────────
+def emite_financeiro(folha_events):
+    """Eventos FECHAMENTO_FOLHA -> XML §4.20 (ArrayOfArrayDadosFinanceiros).
+    1 Response por CPF; 1 <ArrayDadosFinanceiros> por (vinculo, competencia), com
+    rubricas aninhadas em <dadosFinanceiros>. mes_competencia -> mesAnoPagamento;
+    tipo_fechamento -> indicadorMovSupl por rubrica (de-para v0.3 §2)."""
+    por_cpf = {}
+    for e in folha_events:
+        pl = e["payload"] if isinstance(e["payload"], dict) else json.loads(e["payload"])
+        por_cpf.setdefault(e["cpf"], []).append((e["matricula_funcional"], pl))
+    out = ["<lote>"]
+    for cpf, itens in por_cpf.items():
+        out.append(f'  <soap:Envelope xmlns:soap="{env.NS_SOAP}"><soap:Body>')
+        out.append(f'    <ns1:consultaDadosFinanceirosHistoricoResponse xmlns:ns1="{env.NS_WRAP}">')
+        out.append("     " + _tag("cpf", cpf))   # resposta e por-CPF; conector carimba os eventos
+        out.append(f'     <out><ArrayOfArrayDadosFinanceiros xmlns="{env.NS_TIPO}">')
+        for mat, pl in itens:
+            supl = env.MOVSUPL_EMITE.get(pl.get("tipo_fechamento", "normal"), "N")
+            out.append("      <ArrayDadosFinanceiros>")
+            out.append("       " + _tag("codigoOrgao", ""))        # descarta (pend. pos-live)
+            out.append("       " + _tag("matricula", mat))
+            out.append("       " + _tag("mesAnoPagamento", pl.get("mes_competencia", "")))
+            out.append("       <dadosFinanceiros>")
+            for r in pl.get("rubricas", []):
+                campos = "".join(_tag(tag, r.get(campo, "")) for campo, tag, _k in env.RUBRICA)
+                out.append("        <DadosFinanceiros>"
+                           + campos + _tag("indicadorMovSupl", supl)
+                           + "</DadosFinanceiros>")
+            out.append("       </dadosFinanceiros>")
+            out.append("      </ArrayDadosFinanceiros>")
+        out.append("     </ArrayOfArrayDadosFinanceiros></out>")
+        out.append("    </ns1:consultaDadosFinanceirosHistoricoResponse>")
+        out.append("  </soap:Body></soap:Envelope>")
+    out.append("</lote>")
+    return "\n".join(out)
+
+
+# ── D. listaContribuicoesPSS §4.22 (CONTRIBUICAO_PSS) ─────────────────────────
+def emite_pss(pss_events):
+    """Eventos CONTRIBUICAO_PSS -> XML §4.22 (ArrayOfArrayContribuicoesPSS).
+    Arvore aninhada ano->mes->contribuicao (de-para v0.3 §3). matricula em
+    grMatricula no nivel ArrayContribuicoesPSS (WSDL nao traz — linkage provisorio)."""
+    por_cpf = {}
+    for e in pss_events:
+        pl = e["payload"] if isinstance(e["payload"], dict) else json.loads(e["payload"])
+        por_cpf.setdefault(e["cpf"], {}).setdefault(e["matricula_funcional"], []).append(pl)
+    out = ["<lote>"]
+    for cpf, vincs in por_cpf.items():
+        out.append(f'  <soap:Envelope xmlns:soap="{env.NS_SOAP}"><soap:Body>')
+        out.append(f'    <ns1:listaContribuicoesPSSResponse xmlns:ns1="{env.NS_WRAP}">')
+        out.append("     " + _tag("cpf", cpf))   # resposta e por-CPF; conector carimba os eventos
+        out.append(f'     <out><ArrayOfArrayContribuicoesPSS xmlns="{env.NS_TIPO}">')
+        for mat, series in vincs.items():
+            por_ano = {}
+            for pl in series:
+                por_ano.setdefault(str(pl.get("ano_contribuicao", "")), []).append(pl)
+            out.append("      <ArrayContribuicoesPSS>")
+            out.append("       " + _tag("grMatricula", mat))   # linkage provisorio
+            out.append("       <anoContribuicoesPSS>")
+            for ano, meses in por_ano.items():
+                out.append("        <AnoContribuicoesPSS>")
+                out.append("         " + _tag("ano", ano))
+                out.append("         <mes>")
+                for pl in meses:
+                    esc = "".join(_tag(tag, pl.get(campo, "")) for campo, tag, _k in env.PSS)
+                    out.append("          <MesContribuicoesPSS>"
+                               + _tag("mes", pl.get("mes_contribuicao", ""))
+                               + "<contribuicoesPSS>" + esc + "</contribuicoesPSS>"
+                               + "</MesContribuicoesPSS>")
+                out.append("         </mes>")
+                out.append("        </AnoContribuicoesPSS>")
+            out.append("       </anoContribuicoesPSS>")
+            out.append("      </ArrayContribuicoesPSS>")
+        out.append("     </ArrayOfArrayContribuicoesPSS></out>")
+        out.append("    </ns1:listaContribuicoesPSSResponse>")
         out.append("  </soap:Body></soap:Envelope>")
     out.append("</lote>")
     return "\n".join(out)

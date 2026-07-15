@@ -1,0 +1,48 @@
+================================================================
+ MDM-RH — LOG DE EXECUCAO E2E DE INGESTAO — 2026-07-15 00:52:48 -03
+ Postgres: PostgreSQL 18.4 (Debian 18.4-1.pgdg13+1) on x86_64-pc-linux-gnu
+ Container: mdm_rh_pg (pg18, porta 5433, dedicado ao mdm_rh)
+================================================================
+
+### [1] CORPUS (gen_massa + gerador_eventos, deterministico por seed) ###
+servidor: 1300 vinculos
+  geradores/out/eventos_carga_base.csv     17799 eventos
+  geradores/out/eventos_carga_folha.csv    271933 eventos
+  geradores/out/eventos_carga_lixo.csv     30 eventos
+  geradores/out/eventos_carga_pss.csv      271933 eventos
+
+### [2] LOADER-PATH: carrega_evento (base+folha+pss+lixo) -> tabela evento ###
+  carga_base   -> 17799 eventos validos processados (INSERT-only; conflitos de re-load ignorados), 0 rejeitados -> quarentena.
+  carga_folha  -> 271933 eventos validos processados (INSERT-only; conflitos de re-load ignorados), 0 rejeitados -> quarentena.
+  carga_pss    -> 271933 eventos validos processados (INSERT-only; conflitos de re-load ignorados), 0 rejeitados -> quarentena.
+  carga_lixo   -> 30 eventos validos processados (INSERT-only; conflitos de re-load ignorados), 0 rejeitados -> quarentena.
+  evento total = 561695 | MVs refreshed
+
+### [3] JUIZ ADR-008: replay-de-intervalo vs FOTO (alvo: 0 divergencias) ###
+[valida-pg] replay-de-intervalo (carga_base, ref=2026-07-13) vs FOTO projetada: 1300 vinculos | nucleo: 0 divergencias | estendido: 0 | universo: 0
+
+### [4] ADR-009: retratacao por DETACH da carga defeituosa (sem DELETE) ###
+  carga_lixo id = bd9c66b3-ad3c-4d6d-9a3d-1fa7bc8960a9
+  ALTER TABLE
+  evento pos-DETACH = 561665 (lixo isolado, nao deletado)
+[valida-pg] replay-de-intervalo (carga_base, ref=2026-07-13) vs FOTO projetada: 1300 vinculos | nucleo: 0 divergencias | estendido: 0 | universo: 0
+
+### [5] RUNNER SIAPE: ingestao_siape (extrai xml -> conecta A/B/C/D -> persiste -> refresh) ###
+  [extrai/conecta] foto=1300 afast=750 folha=271933 pss=271933 | rejeitos A/B/C/D=0/0/0/0 | id_carga=a3966e5d data_ref=2026-07-13
+  [refresh] 4 MVs de exposicao atualizadas
+  == ingestao SIAPE: 1300 FOTO + 544616 eventos, carga a3966e5d ==
+  AFASTAMENTO = 750
+  CONTRIBUICAO_PSS = 271933
+  FECHAMENTO_FOLHA = 271933
+  afastamentos EM ABERTO (data_fim null = licenca rolando): 26
+  cpf invalido (deve ser 0): 0
+
+### [6] ROUND-TRIP CONTRATO: emissor<->conector, 4 faces (corpus real) ###
+  [a] round-trip Funcionais: 1300 vinculos, 0 divergencias, 0 rejeitos -> OK
+  [b.1] identidade (§4.21 snapshot): 965 no stream -> 750 ocorrencias, 750 reconstruidas, 0 rejeitos -> OK
+  [b.2] replay(rest+eventos') vs FOTO: 1300 vinculos, 0 divergencias -> OK
+  [c] round-trip FECHAMENTO_FOLHA: 271933 eventos, 0 divergencias, 0 rejeitos -> OK
+  [d] round-trip CONTRIBUICAO_PSS: 271933 eventos, 0 divergencias, 0 rejeitos -> OK
+  == RESULTADO: A OK | B OK | C OK | D OK ==
+
+================== FIM DO LOG E2E ==================
